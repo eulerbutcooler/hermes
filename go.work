@@ -1,8 +1,8 @@
-go 1.24.0
+go 1.25.6
 
 use (
 	./packages/hermes-common
 	./services/hermes-core
-	./services/hermes-worker
 	./services/hermes-hooks
+	./services/hermes-worker
 )

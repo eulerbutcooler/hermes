@@ -1,3 +1,3 @@
-module github.com/eulerbutcooler/hermes/packages/hermes-common
+module github.com/eulerbutcooler/hermes/packages/hermes-logger
 
-go 1.24.0
+go 1.25.6
