@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/eulerbutcooler/hermes-core/internal/models"
+	"github.com/eulerbutcooler/hermes/services/hermes-core/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

@@ -8,13 +8,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/eulerbutcooler/hermes-common/pkg/logger"
-	"github.com/eulerbutcooler/hermes-worker/internal/config"
-	"github.com/eulerbutcooler/hermes-worker/internal/engine"
-	"github.com/eulerbutcooler/hermes-worker/internal/integrations/debug"
-	"github.com/eulerbutcooler/hermes-worker/internal/integrations/discord"
-	"github.com/eulerbutcooler/hermes-worker/internal/queue"
-	"github.com/eulerbutcooler/hermes-worker/internal/store"
+	"github.com/eulerbutcooler/hermes/packages/hermes-common/pkg/logger"
+	"github.com/eulerbutcooler/hermes/services/hermes-worker/internal/config"
+	"github.com/eulerbutcooler/hermes/services/hermes-worker/internal/engine"
+	"github.com/eulerbutcooler/hermes/services/hermes-worker/internal/integrations/debug"
+	"github.com/eulerbutcooler/hermes/services/hermes-worker/internal/integrations/discord"
+	"github.com/eulerbutcooler/hermes/services/hermes-worker/internal/queue"
+	"github.com/eulerbutcooler/hermes/services/hermes-worker/internal/store"
 	"github.com/joho/godotenv"
 )
 

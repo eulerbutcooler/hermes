@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/eulerbutcooler/hermes-worker/internal/engine"
+	"github.com/eulerbutcooler/hermes/services/hermes-worker/internal/engine"
 	"github.com/nats-io/nats.go"
 )
 

@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/eulerbutcooler/hermes-common/pkg/logger"
-	"github.com/eulerbutcooler/hermes-core/internal/api"
-	"github.com/eulerbutcooler/hermes-core/internal/config"
-	"github.com/eulerbutcooler/hermes-core/internal/db"
-	"github.com/eulerbutcooler/hermes-core/internal/store"
+	"github.com/eulerbutcooler/hermes/packages/hermes-common/pkg/logger"
+	"github.com/eulerbutcooler/hermes/services/hermes-core/internal/api"
+	"github.com/eulerbutcooler/hermes/services/hermes-core/internal/config"
+	"github.com/eulerbutcooler/hermes/services/hermes-core/internal/db"
+	"github.com/eulerbutcooler/hermes/services/hermes-core/internal/store"
 	"github.com/joho/godotenv"
 )
 

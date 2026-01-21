@@ -1,18 +1,18 @@
-module github.com/eulerbutcooler/hermes-worker
+module github.com/eulerbutcooler/hermes/services/hermes-worker
 
 go 1.24.0
 
 toolchain go1.24.11
 
 require (
-	github.com/eulerbutcooler/hermes-common v0.0.0-20260117212725-f85e62a325c9
+	github.com/eulerbutcooler/hermes/packages/hermes-common latest
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/nats-io/nats.go v1.48.0
 )
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
-	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgservicefile v0.0.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect

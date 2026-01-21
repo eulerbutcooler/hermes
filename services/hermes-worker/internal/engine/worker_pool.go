@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/eulerbutcooler/hermes-worker/internal/store"
+	"github.com/eulerbutcooler/hermes/services/hermes-worker/internal/store"
 )
 
 type Job struct {

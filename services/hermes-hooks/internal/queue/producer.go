@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/eulerbutcooler/hermes-hooks/internal/api"
+	"github.com/eulerbutcooler/hermes/services/hermes-hooks/internal/api"
 
 	"github.com/nats-io/nats.go"
 )

@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/eulerbutcooler/hermes-common/pkg/logger"
+	"github.com/eulerbutcooler/hermes/packages/hermes-common/pkg/logger"
 	"github.com/go-chi/chi/v5"
 )
 

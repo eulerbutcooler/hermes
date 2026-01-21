@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/eulerbutcooler/hermes-common/pkg/logger"
-	"github.com/eulerbutcooler/hermes-hooks/internal/api"
-	"github.com/eulerbutcooler/hermes-hooks/internal/config"
-	"github.com/eulerbutcooler/hermes-hooks/internal/queue"
+	"github.com/eulerbutcooler/hermes/packages/hermes-common/pkg/logger"
+	"github.com/eulerbutcooler/hermes/services/hermes-hooks/internal/api"
+	"github.com/eulerbutcooler/hermes/services/hermes-hooks/internal/config"
+	"github.com/eulerbutcooler/hermes/services/hermes-hooks/internal/queue"
 	"github.com/joho/godotenv"
 )
 

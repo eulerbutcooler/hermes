@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/eulerbutcooler/hermes-core/internal/models"
-	"github.com/eulerbutcooler/hermes-core/internal/store"
+	"github.com/eulerbutcooler/hermes/services/hermes-core/internal/models"
+	"github.com/eulerbutcooler/hermes/services/hermes-core/internal/store"
 	"github.com/go-chi/chi/v5"
 )
 
