@@ -1,0 +1,8 @@
+go 1.22
+
+use (
+	./packages/hermes-common
+	./services/hermes-core
+	./services/hermes-worker
+	./services/hermes-hooks
+)
