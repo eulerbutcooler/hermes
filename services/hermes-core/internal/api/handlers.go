@@ -83,3 +83,5 @@ func (h *Handler) GetRelayLogs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(logs)
 }
+
+func (*Handler) GetRelay(w *http.ResponseWriter, r *http.Request)
