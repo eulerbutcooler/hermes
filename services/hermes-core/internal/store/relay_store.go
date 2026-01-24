@@ -73,7 +73,7 @@ func (s *RelayStore) CreateRelay(ctx context.Context, req models.CreateRelayRequ
 		err = tx.QueryRow(ctx, queryAction, actionID, relayID, actionReq.ActionType, configJSON, actionReq.OrderIndex, now, now).Scan(
 			&action.ID, &action.RelayID, &action.ActionType, &configBytes, &action.OrderIndex, &action.CreatedAt, &action.UpdatedAt)
 		if err != nil {
-			return nil, fmt.Errorf("insert action: %w")
+			return nil, fmt.Errorf("insert action: %w", err)
 		}
 		if err := json.Unmarshal(configBytes, &action.Config); err != nil {
 			return nil, fmt.Errorf("unmarshal action config: %w", err)
