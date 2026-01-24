@@ -1,8 +1,6 @@
 package api
 
 import (
-	"net/http"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -24,14 +22,15 @@ func NewRouter(h *Handler) *chi.Mux {
 		MaxAge:           300,
 	}))
 
+	r.Get("/health", h.HealthCheck)
+
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Post("/relays", h.CreateRelay)
-		r.Get("/relays/{relayID}/logs", h.GetRelayLogs)
-	})
-
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		r.Get("/relays", h.GetAllRelays)
+		r.Get("/relays/{id}", h.GetRelay)
+		r.Put("/relays/{id}", h.UpdateRelay)
+		r.Delete("/relays/{id}", h.DeleteRelay)
+		r.Get("/relays/{id}/logs", h.GetRelayLogs)
 	})
 	return r
 }
