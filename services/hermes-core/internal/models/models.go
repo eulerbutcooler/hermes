@@ -4,7 +4,7 @@ import "time"
 
 type CreateRelayRequest struct {
 	Name        string                   `json:"name"`
-	UserID      int                      `json:"user_id"`
+	UserID      string                   `json:"user_id"`
 	Description string                   `json:"description"`
 	Actions     []CreateRelayActionInput `json:"actions"`
 }

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/eulerbutcooler/hermes/services/hermes-core/internal/models"
 	"github.com/eulerbutcooler/hermes/services/hermes-core/internal/store"
@@ -55,11 +56,11 @@ func (h *Handler) CreateRelay(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
 		return
 	}
-	if req.Name == "" {
+	if strings.TrimSpace(req.Name) == "" {
 		h.respondError(w, http.StatusBadRequest, "Name is required", "VALIDATION_ERROR")
 		return
 	}
-	if strconv.Itoa(req.UserID) == "" {
+	if strings.TrimSpace(req.UserID) == "" {
 		h.respondError(w, http.StatusBadRequest, "UserID is required", "VALIDATION_ERROR")
 		return
 	}
@@ -87,7 +88,7 @@ func (h *Handler) CreateRelay(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.logger.Error("failed to create relay",
 			slog.String("error", err.Error()),
-			slog.Int("user_id", req.UserID),
+			slog.String("user_id", req.UserID),
 		)
 		h.respondError(w, http.StatusInternalServerError, "Failed to create relay", "DB_ERROR")
 		return
@@ -96,7 +97,7 @@ func (h *Handler) CreateRelay(w http.ResponseWriter, r *http.Request) {
 
 	h.logger.Info("relay created",
 		slog.String("relay_id", relay.ID),
-		slog.String("user_id", strconv.Itoa(req.UserID)),
+		slog.String("user_id", req.UserID),
 		slog.Int("action_count", len(relay.Actions)),
 	)
 
@@ -137,10 +138,7 @@ func (h *Handler) GetRelayLogs(w http.ResponseWriter, r *http.Request) {
 	limit := 50
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
 		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-			if limit > 200 {
-				limit = 200
-			}
+			limit = min(parsedLimit, 200)
 		}
 	}
 	h.logger.Debug("fetching relay logs", slog.String("relay_id", relayID),

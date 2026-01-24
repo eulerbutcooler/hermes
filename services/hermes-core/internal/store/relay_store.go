@@ -30,7 +30,7 @@ func (s *RelayStore) CreateRelay(ctx context.Context, req models.CreateRelayRequ
 	webhookPath := fmt.Sprintf("/hooks/%s", relayID)
 	now := time.Now()
 	queryRelay := `INSERT INTO relays (id, user_id, name,description,webhook_path,is_active, created_at, updated_at)
-	VALUES($1,$2,$3,$4,$5,$6.$7.$8)
+	VALUES($1,$2,$3,$4,$5,$6,$7,$8)
 	RETURNING id, user_id, name, description, webhook_path, is_active, created_at, updated_at`
 
 	var relay models.Relay
@@ -94,7 +94,7 @@ func (s *RelayStore) CreateRelay(ctx context.Context, req models.CreateRelayRequ
 func (s *RelayStore) GetAllRelays(ctx context.Context, userID string) ([]models.Relay, error) {
 	query := `SELECT id,user_id,name,description,webhook_path, is_active, created_at, updated_at
 	FROM relays
-	WHERE user_id = $1 or $1 = ''
+	WHERE user_id = $1::uuid
 	ORDER BY created_at DESC`
 
 	rows, err := s.db.Query(ctx, query, userID)
@@ -199,23 +199,23 @@ func (s *RelayStore) GetRelay(ctx context.Context, relayID string) (*models.Rela
 }
 
 func (s *RelayStore) UpdateRelay(ctx context.Context, relayID string, req models.UpdateRelayRequest) (*models.Relay, error) {
-	query := `UPDATEA relays SET updated_at = $1`
+	query := `UPDATE relays SET updated_at = $1`
 	args := []any{time.Now()}
 	argIdx := 2
 
 	if req.Name != nil {
-		query += fmt.Sprintf(", name=%d", argIdx)
+		query += fmt.Sprintf(", name=$%d", argIdx)
 		args = append(args, *req.Name)
 		argIdx++
 	}
 	if req.Description != nil {
-		query += fmt.Sprintf(",description=%d", argIdx)
+		query += fmt.Sprintf(",description=$%d", argIdx)
 		args = append(args, *req.Description)
 		argIdx++
 	}
 	if req.IsActive != nil {
-		query += fmt.Sprintf(", is_active=%d", argIdx)
-		args = append(args, &req.IsActive)
+		query += fmt.Sprintf(", is_active=$%d", argIdx)
+		args = append(args, *req.IsActive)
 		argIdx++
 	}
 	query += fmt.Sprintf(" WHERE id = $%d RETURNING id, user_id, name, description, webhook_path, is_active, created_at, updated_at", argIdx)

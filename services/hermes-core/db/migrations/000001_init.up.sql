@@ -50,30 +50,30 @@ CREATE INDEX IF NOT EXISTS idx_execution_logs_executed_at ON execution_logs(exec
 
 -- Insert test data
 INSERT INTO users (id, username, email) VALUES
-    ('000-1', 'testuser', 'test@hermes.dev')
+    ('d9fe070a-7cf4-4f8c-9421-92776741d412', 'testuser', 'test@hermes.dev')
 ON CONFLICT (email) DO NOTHING;
 
-INSERT INTO relays (id, user_id, name, description, webhook_path) VALUES
-    (
-        '000-2',
-        '000-1',
-        'Test Discord Relay',
-        'Test webhook that sends to Discord',
-        '/hooks/test-relay'
-    )
-ON CONFLICT (webhook_path) DO NOTHING;
+-- INSERT INTO relays (id, user_id, name, description, webhook_path) VALUES
+--     (
+--         '000-2',
+--         '000-1',
+--         'Test Discord Relay',
+--         'Test webhook that sends to Discord',
+--         '/hooks/test-relay'
+--     )
+-- ON CONFLICT (webhook_path) DO NOTHING;
 
-INSERT INTO relay_actions (relay_id, action_type, config, order_index) VALUES
-    (
-        '000-2',
-        'debug_log',
-        '{"message": "Webhook received"}',
-        1
-    ),
-    (
-        '000-2',
-        'discord_send',
-        '{"webhook_url": "https://discord.com/api/webhooks/YOUR_ID_HERE", "message": "Test from Hermes"}',
-        2
-    )
-ON CONFLICT (relay_id, order_index) DO NOTHING;
+-- INSERT INTO relay_actions (relay_id, action_type, config, order_index) VALUES
+--     (
+--         '000-2',
+--         'debug_log',
+--         '{"message": "Webhook received"}',
+--         1
+--     ),
+--     (
+--         '000-2',
+--         'discord_send',
+--         '{"webhook_url": "https://discord.com/api/webhooks/YOUR_ID_HERE", "message": "Test from Hermes"}',
+--         2
+--     )
+-- ON CONFLICT (relay_id, order_index) DO NOTHING;
