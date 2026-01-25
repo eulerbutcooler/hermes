@@ -2,15 +2,18 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 )
 
 type ExecutionEvent struct {
+	EventID    string          `json:"event_id"`
 	RelayID    string          `json:"relay_id"`
 	Payload    json.RawMessage `json:"payload"`
 	ReceivedAt time.Time       `json:"received_at"`
@@ -49,6 +52,14 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	eventID := r.Header.Get("X-Event-ID")
+	if eventID == "" {
+		eventID = r.URL.Query().Get("event_id")
+	}
+	if eventID == "" {
+		eventID = uuid.New().String()
+	}
+
 	h.logger.Debug("webhook received",
 		slog.String("relay_id", relayID),
 		slog.Int("payload_size", len(body)),
@@ -56,6 +67,7 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	)
 
 	event := ExecutionEvent{
+		EventID:    eventID,
 		RelayID:    relayID,
 		Payload:    body,
 		ReceivedAt: time.Now(),
@@ -71,9 +83,10 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	h.logger.Info("webhook queued successfully",
 		slog.String("relay_id", relayID),
+		slog.String("event_id", eventID),
 	)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"queued"`))
+	_, _ = w.Write([]byte(fmt.Sprintf(`{"status":"queued", "event_id":"%s"}`, eventID)))
 }
