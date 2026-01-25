@@ -13,6 +13,7 @@ import (
 	"github.com/eulerbutcooler/hermes/services/hermes-worker/internal/engine"
 	"github.com/eulerbutcooler/hermes/services/hermes-worker/internal/integrations/debug"
 	"github.com/eulerbutcooler/hermes/services/hermes-worker/internal/integrations/discord"
+	"github.com/eulerbutcooler/hermes/services/hermes-worker/internal/integrations/slack"
 	"github.com/eulerbutcooler/hermes/services/hermes-worker/internal/queue"
 	"github.com/eulerbutcooler/hermes/services/hermes-worker/internal/store"
 	"github.com/joho/godotenv"
@@ -43,9 +44,10 @@ func main() {
 	reg := engine.NewRegistry()
 	reg.Register("debug_log", debug.New())
 	reg.Register("discord_send", discord.New())
+	reg.Register("slack_send", slack.New())
 	appLogger.Info("integrations loaded",
-		slog.Int("count", 2),
-		slog.Any("types", []string{"debug_log", "discord_send"}),
+		slog.Int("count", 3),
+		slog.Any("types", []string{"debug_log", "discord_send", "slack_send"}),
 	)
 
 	pool := engine.NewWorkerPool(10, db, reg, appLogger)

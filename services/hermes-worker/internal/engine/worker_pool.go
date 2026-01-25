@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 type Job struct {
 	RelayID string
+	EventID string
 	Payload []byte
 	MsgAck  func(bool)
 }
@@ -53,7 +55,7 @@ func (wp *WorkerPool) Start(ctx context.Context) {
 }
 
 // Each worker runs its own goroutine
-func (wp *WorkerPool) worker(ctx context.Context, id int) {
+func (wp *WorkerPool) worker(_ context.Context, id int) {
 	defer wp.wg.Done()
 	workerLogger := wp.Logger.With(slog.Int("worker_id", id))
 	workerLogger.Debug("worker started")
@@ -62,17 +64,25 @@ func (wp *WorkerPool) worker(ctx context.Context, id int) {
 		case <-wp.ctx.Done():
 			workerLogger.Info("worker shutting down")
 			return
-		case job := <-wp.JobQueue:
+		case job, ok := <-wp.JobQueue:
+			if !ok {
+				workerLogger.Info("job queue closed, worker exiting")
+				return
+			}
 			start := time.Now()
-			workerLogger.Info("processing relay", slog.String("relay_id", job.RelayID))
+			workerLogger.Info("processing relay", slog.String("relay_id", job.RelayID), slog.String("event_id", job.EventID))
 			err := wp.process(wp.ctx, job, workerLogger)
 			duration := time.Since(start)
 			if err != nil {
 				workerLogger.Error("relay execution failed", slog.String("relay_id", job.RelayID),
-					slog.Duration("duration", duration), slog.String("error", err.Error()))
+					slog.String("event_id", job.EventID),
+					slog.Duration("duration", duration),
+					slog.String("error", err.Error()))
 				job.MsgAck(false)
 			} else {
-				workerLogger.Info("relay execution succeeded", slog.String("relay_id", job.RelayID), slog.Duration("duration", duration))
+				workerLogger.Info("relay execution succeeded", slog.String("relay_id", job.RelayID),
+					slog.String("event_id", job.EventID),
+					slog.Duration("duration", duration))
 				job.MsgAck(true)
 			}
 		}
@@ -83,31 +93,49 @@ func (wp *WorkerPool) worker(ctx context.Context, id int) {
 func (wp *WorkerPool) process(ctx context.Context, job Job, logger *slog.Logger) (err error) {
 	status := "success"
 	details := "Relay executed successfully"
+
+	if job.EventID != "" {
+		isNew, dedupeErr := wp.Store.RegisterEvent(ctx, job.RelayID, job.EventID)
+		if dedupeErr != nil {
+			return dedupeErr
+		}
+		if !isNew {
+			logger.Info("duplicate event skipped",
+				slog.String("relay_id", job.RelayID),
+				slog.String("event_id", job.EventID))
+			return nil
+		}
+	}
 	defer func() {
+		logCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
 		if err != nil {
 			status = "failed"
 			details = err.Error()
 		}
-		logErr := wp.Store.LogExecution(context.Background(), job.RelayID, status, details)
+		logErr := wp.Store.LogExecution(logCtx, job.RelayID, status, details, job.EventID, job.Payload)
 		if logErr != nil {
 			logger.Error("failed to save execution log", slog.String("error", logErr.Error()))
 		}
 	}()
-	logger.Debug("fetching relay instructions", slog.String("relay_id", job.RelayID))
-
-	instruction, fetchErr := wp.Store.GetRelayInstructions(ctx, job.RelayID)
+	actions, fetchErr := wp.Store.GetRelayActions(ctx, job.RelayID)
 	if fetchErr != nil {
 		return fetchErr
 	}
-
-	logger.Debug("fetched relay instructions", slog.String("action_type", instruction.ActionType))
-
-	executor, pluginErr := wp.Registry.Get(instruction.ActionType)
-	if pluginErr != nil {
-		return pluginErr
+	for _, act := range actions {
+		logger.Debug("executing action",
+			slog.String("action_type", act.ActionType),
+			slog.Int("order_index", act.OrderIndex),
+			slog.String("event_id", job.EventID))
+		executor, pluginErr := wp.Registry.Get(act.ActionType)
+		if pluginErr != nil {
+			return pluginErr
+		}
+		if execErr := executor.Execute(ctx, act.Config, job.Payload); execErr != nil {
+			return fmt.Errorf("action %s (order %d) failed: %w", act.ActionType, act.OrderIndex, execErr)
+		}
 	}
-	logger.Debug("execution instruction", slog.String("action_type", instruction.ActionType))
-	return executor.Execute(ctx, instruction.Config, job.Payload)
+	return nil
 }
 
 func (wp *WorkerPool) Shutdown() {

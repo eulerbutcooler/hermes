@@ -20,12 +20,17 @@ type Consumer struct {
 // Constructor pattern
 // Initializes the NATS connection but doesnt start consuming right off
 func NewConsumer(url string, jobQueue chan engine.Job, logger *slog.Logger) (*Consumer, error) {
-	logger.Info("connecting to NATS", slog.String("url", url))
-	nc, err := nats.Connect(url, nats.MaxReconnects(10), nats.ReconnectWait(2), nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
-		logger.Warn("NATS disconnected", slog.String("error", err.Error()), nats.ReconnectHandler(func(c *nats.Conn) {
+	nc, err := nats.Connect(
+		url,
+		nats.MaxReconnects(10),
+		nats.ReconnectWait(2*time.Second),
+		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
+			logger.Warn("NATS disconnected", slog.String("error", err.Error()))
+		}),
+		nats.ReconnectHandler(func(nc *nats.Conn) {
 			logger.Info("NATS reconnected")
-		}))
-	}))
+		}),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("nats connect error: %w", err)
 	}
@@ -41,7 +46,7 @@ func NewConsumer(url string, jobQueue chan engine.Job, logger *slog.Logger) (*Co
 	}, nil
 }
 
-// Consumes the messages by subscibing to NATS and processing messages async
+// Consumes the messages by subscribing to NATS and processing messages async
 func (c *Consumer) Start() error {
 	c.logger.Info("starting NATS consumer",
 		slog.String("subject", "events.>"),
@@ -61,6 +66,7 @@ func (c *Consumer) Start() error {
 
 func (c *Consumer) handleMessage(msg *nats.Msg) {
 	type Event struct {
+		EventID    string          `json:"event_id"`
 		RelayID    string          `json:"relay_id"`
 		Payload    json.RawMessage `json:"payload"`
 		ReceivedAt string          `json:"received_at"`
@@ -74,18 +80,22 @@ func (c *Consumer) handleMessage(msg *nats.Msg) {
 	}
 	c.logger.Debug("received event",
 		slog.String("relay_id", evt.RelayID),
+		slog.String("event_id", evt.EventID),
 		slog.Int("payload_size", len(evt.Payload)))
 	// Bridges NATS consumer to Worker Pool
 	job := engine.Job{
 		RelayID: evt.RelayID,
+		EventID: evt.EventID,
 		Payload: evt.Payload,
 		MsgAck: func(success bool) {
 			if success {
 				msg.Ack()
-				c.logger.Debug("acknowledged message", slog.String("relay_id", evt.RelayID))
+				c.logger.Debug("acknowledged message", slog.String("relay_id", evt.RelayID),
+					slog.String("event_id", evt.EventID))
 			} else {
 				msg.Nak()
-				c.logger.Warn("nacked message (will retry)", slog.String("relay_id", evt.RelayID))
+				c.logger.Warn("nacked message (will retry)", slog.String("relay_id", evt.RelayID),
+					slog.String("event_id", evt.EventID))
 			}
 		},
 	}
