@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -159,7 +160,7 @@ func (h *Handler) GetRelay(w http.ResponseWriter, r *http.Request) {
 	h.logger.Debug("fetching relay", slog.String("relay_id", relayID))
 	relay, err := h.store.GetRelay(r.Context(), relayID)
 	if err != nil {
-		if err.Error() == "relay not found" {
+		if errors.Is(err, store.ErrRelayNotFound) {
 			h.logger.Warn("relay not found", slog.String("relay_id", relayID))
 			h.respondError(w, http.StatusNotFound, "Relay Not found", "NOT_FOUND")
 			return
@@ -194,7 +195,7 @@ func (h *Handler) UpdateRelay(w http.ResponseWriter, r *http.Request) {
 	}
 	relay, err := h.store.UpdateRelay(r.Context(), relayID, req)
 	if err != nil {
-		if err.Error() == "relay not found" {
+		if errors.Is(err, store.ErrRelayNotFound) {
 			h.logger.Warn("relay not found", slog.String("relay_id", relayID))
 			h.respondError(w, http.StatusNotFound, "Relay not found", "NOT_FOUND")
 			return
@@ -213,7 +214,7 @@ func (h *Handler) DeleteRelay(w http.ResponseWriter, r *http.Request) {
 	relayID := chi.URLParam(r, "id")
 	err := h.store.DeleteRelay(r.Context(), relayID)
 	if err != nil {
-		if err.Error() == "relay not found" {
+		if errors.Is(err, store.ErrRelayNotFound) {
 			h.logger.Warn("relay not found for deletion", slog.String("relay_id", relayID))
 			h.respondError(w, http.StatusNotFound, "Relay not found", "NOT_FOUND")
 			return

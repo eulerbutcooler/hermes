@@ -30,6 +30,7 @@ func main() {
 	pool, err := db.New(cfg.DatabaseURL)
 	if err != nil {
 		appLogger.Error("database connection failed", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 	defer pool.Close()
 	appLogger.Info("database connected")

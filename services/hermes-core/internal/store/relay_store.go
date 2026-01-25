@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 type RelayStore struct {
 	db *pgxpool.Pool
 }
+
+var ErrRelayNotFound = errors.New("relay not found")
 
 func NewRelayStore(db *pgxpool.Pool) *RelayStore {
 	return &RelayStore{db: db}
@@ -145,7 +148,7 @@ func (s *RelayStore) GetRelay(ctx context.Context, relayID string) (*models.Rela
 		&relay.UpdatedAt,
 	)
 	if err == pgx.ErrNoRows {
-		return nil, fmt.Errorf("relay not found")
+		return nil, ErrRelayNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("query relay: %w", err)
@@ -232,7 +235,7 @@ func (s *RelayStore) UpdateRelay(ctx context.Context, relayID string, req models
 		&relay.UpdatedAt,
 	)
 	if err == pgx.ErrNoRows {
-		return nil, fmt.Errorf("relay not found")
+		return nil, ErrRelayNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("update relay: %w", err)
@@ -249,7 +252,7 @@ func (s *RelayStore) DeleteRelay(ctx context.Context, relayID string) error {
 	}
 
 	if result.RowsAffected() == 0 {
-		return fmt.Errorf("relay not found")
+		return ErrRelayNotFound
 	}
 
 	return nil
