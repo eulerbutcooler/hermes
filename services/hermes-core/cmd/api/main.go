@@ -84,7 +84,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	handler := api.NewHandler(relayStore, secretStore, userStore, connectionStore, providers, stateCodec, cfg.JWTSecret, appLogger, publisher, cfg.BaseURL, cfg.FrontendURL)
+	handler := api.NewHandler(relayStore, secretStore, userStore, connectionStore, providers, stateCodec, cfg.JWTSecret, appLogger, publisher, cfg.HooksURL, cfg.FrontendURL)
 	router := api.NewRouter(handler, cfg.JWTSecret, cfg.FrontendURL)
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,

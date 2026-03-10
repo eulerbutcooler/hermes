@@ -115,7 +115,7 @@ func (h *Handler) CreateRelay(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, http.StatusInternalServerError, "Failed to create relay", "DB_ERROR")
 		return
 	}
-	relay.Relay.WebhookURL = h.baseURL + relay.Relay.WebhookPath
+	relay.Relay.WebhookURL = h.hooksURL + relay.Relay.WebhookPath
 
 	h.logger.Info("relay created",
 		slog.String("relay_id", relay.ID),
@@ -144,7 +144,7 @@ func (h *Handler) GetAllRelays(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for i := range relays {
-		relays[i].WebhookURL = h.baseURL + relays[i].WebhookPath
+		relays[i].WebhookURL = h.hooksURL + relays[i].WebhookPath
 	}
 
 	h.logger.Info("fetched relays",
@@ -240,7 +240,7 @@ func (h *Handler) GetRelay(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, http.StatusInternalServerError, "Failed to fetch relay", "DB_ERROR")
 		return
 	}
-	relay.Relay.WebhookURL = h.baseURL + relay.Relay.WebhookPath
+	relay.Relay.WebhookURL = h.hooksURL + relay.Relay.WebhookPath
 	h.logger.Info("fetched relay",
 		slog.String("relay_id", relayID),
 		slog.Int("action_count", len(relay.Actions)),
@@ -292,7 +292,7 @@ func (h *Handler) UpdateRelay(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, http.StatusInternalServerError, "Failed to update relay", "DB_ERROR")
 		return
 	}
-	relay.WebhookURL = h.baseURL + relay.WebhookPath
+	relay.WebhookURL = h.hooksURL + relay.WebhookPath
 	h.logger.Info("relay updated", slog.String("relay_id", relayID))
 	h.respondSuccess(w, http.StatusOK, "Relay updated successfully", relay)
 }
@@ -352,7 +352,7 @@ func (h *Handler) UpdateRelayActions(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, http.StatusInternalServerError, "Failed to update actions", "DB_ERROR")
 		return
 	}
-	relay.Relay.WebhookURL = h.baseURL + relay.Relay.WebhookPath
+	relay.Relay.WebhookURL = h.hooksURL + relay.Relay.WebhookPath
 
 	h.logger.Info("relay actions updated",
 		slog.String("relay_id", relayID),

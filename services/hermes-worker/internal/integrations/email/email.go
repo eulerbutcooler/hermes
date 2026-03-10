@@ -63,7 +63,7 @@ func (s *Sender) Execute(ctx context.Context, cfg map[string]any, payload []byte
 		}
 		accessToken = refreshed.AccessToken
 		if updateErr := s.connStore.UpdateConnectionTokens(ctx, connectionID, refreshed.AccessToken, refreshed.RefreshToken, refreshed.Expiry); updateErr != nil {
-			_ = updateErr
+			return nil, fmt.Errorf("email_send: failed to persist refreshed token: %w", updateErr)
 		}
 	}
 	sent := make([]string, 0)

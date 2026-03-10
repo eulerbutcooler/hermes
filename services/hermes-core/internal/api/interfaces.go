@@ -50,7 +50,7 @@ type Handler struct {
 	oauthProviders  map[string]oauth.Provider
 	stateCodec      *oauth.StateCodec
 	logger          *slog.Logger
-	baseURL         string
+	hooksURL        string
 	jwtSecret       string
 	publisher       EventPublisher
 	frontendURL     string
@@ -66,7 +66,7 @@ func NewHandler(
 	jwtSecret string,
 	logger *slog.Logger,
 	publisher EventPublisher,
-	baseURL string,
+	hooksURL string,
 	frontendURL string,
 ) *Handler {
 	return &Handler{
@@ -79,7 +79,7 @@ func NewHandler(
 		jwtSecret:       jwtSecret,
 		logger:          logger,
 		publisher:       publisher,
-		baseURL:         baseURL,
+		hooksURL:        hooksURL,
 		frontendURL:     frontendURL,
 	}
 }

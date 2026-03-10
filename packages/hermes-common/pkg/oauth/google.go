@@ -100,13 +100,20 @@ func (g *GoogleProvider) Refresh(ctx context.Context, refreshToken string) (*Tok
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("google token refresh failed (%d): %s", resp.StatusCode, body)
+	}
+
 	var tokenResp struct {
 		AccessToken string `json:"access_token"`
 		ExpiresIn   int    `json:"expires_in"`
 	}
-
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
 		return nil, fmt.Errorf("decode google refresh response: %w", err)
+	}
+	if tokenResp.AccessToken == "" {
+		return nil, fmt.Errorf("google token refresh returned empty access token")
 	}
 
 	return &Tokens{
