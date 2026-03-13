@@ -29,6 +29,7 @@ type WorkerPool struct {
 	wg         sync.WaitGroup
 	ctx        context.Context
 	cancel     context.CancelFunc
+	stopOnce   sync.Once
 }
 
 // Constructor with dependency injxtn
@@ -51,47 +52,39 @@ func (wp *WorkerPool) Start(ctx context.Context) {
 	)
 	for i := 0; i < wp.MaxWorkers; i++ {
 		wp.wg.Add(1)
-		go wp.worker(ctx, i)
+		go wp.worker(i)
 	}
 	wp.Logger.Info("worker pool started",
 		slog.Int("workers", wp.MaxWorkers))
 }
 
 // Each worker runs its own goroutine
-func (wp *WorkerPool) worker(_ context.Context, id int) {
+func (wp *WorkerPool) worker(id int) {
 	defer wp.wg.Done()
 	workerLogger := wp.Logger.With(slog.Int("worker_id", id))
 	workerLogger.Debug("worker started")
-	for {
-		select {
-		case <-wp.ctx.Done():
-			workerLogger.Info("worker shutting down")
-			return
-		case job, ok := <-wp.JobQueue:
-			if !ok {
-				workerLogger.Info("job queue closed, worker exiting")
-				return
-			}
-			start := time.Now()
-			workerLogger.Info("processing relay",
+
+	for job := range wp.JobQueue {
+		start := time.Now()
+		workerLogger.Info("processing relay",
+			slog.String("relay_id", job.RelayID),
+			slog.String("event_id", job.EventID))
+
+		err := wp.process(wp.ctx, job, workerLogger)
+		duration := time.Since(start)
+		if err != nil {
+			workerLogger.Error("relay execution failed",
 				slog.String("relay_id", job.RelayID),
-				slog.String("event_id", job.EventID))
-			err := wp.process(wp.ctx, job, workerLogger)
-			duration := time.Since(start)
-			if err != nil {
-				workerLogger.Error("relay execution failed",
-					slog.String("relay_id", job.RelayID),
-					slog.String("event_id", job.EventID),
-					slog.Duration("duration", duration),
-					slog.String("error", err.Error()))
-				job.MsgAck(false)
-			} else {
-				workerLogger.Info("relay execution succeeded",
-					slog.String("relay_id", job.RelayID),
-					slog.String("event_id", job.EventID),
-					slog.Duration("duration", duration))
-				job.MsgAck(true)
-			}
+				slog.String("event_id", job.EventID),
+				slog.Duration("duration", duration),
+				slog.String("error", err.Error()))
+			job.MsgAck(false)
+		} else {
+			workerLogger.Info("relay execution succeeded",
+				slog.String("relay_id", job.RelayID),
+				slog.String("event_id", job.EventID),
+				slog.Duration("duration", duration))
+			job.MsgAck(true)
 		}
 	}
 }
@@ -253,12 +246,13 @@ func redactConfig(original, resolved map[string]any) map[string]any {
 }
 
 func (wp *WorkerPool) Shutdown() {
-	wp.Logger.Info("Initializing worker pool shutdown")
-
-	if wp.cancel != nil {
-		wp.cancel()
-	}
-	close(wp.JobQueue)
-	wp.wg.Wait()
-	wp.Logger.Info("Worker pool shutdown complete")
+	wp.stopOnce.Do(func() {
+		wp.Logger.Info("Initializing worker pool shutdown")
+		close(wp.JobQueue)
+		wp.wg.Wait()
+		if wp.cancel != nil {
+			wp.cancel()
+		}
+		wp.Logger.Info("Worker pool shutdown complete")
+	})
 }

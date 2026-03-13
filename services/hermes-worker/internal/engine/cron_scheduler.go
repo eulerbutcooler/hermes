@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/eulerbutcooler/hermes/packages/hermes-common/pkg/cronutil"
@@ -22,6 +23,8 @@ type CronScheduler struct {
 	logger   *slog.Logger
 	ticker   *time.Ticker
 	done     chan struct{}
+	stopOnce sync.Once
+	wg       sync.WaitGroup
 }
 
 func NewCronScheduler(store CronStore, jobQueue chan Job, logger *slog.Logger) *CronScheduler {
@@ -39,7 +42,7 @@ func (cs *CronScheduler) Start(ctx context.Context) {
 
 	cs.tick(ctx)
 
-	go func() {
+	cs.wg.Go(func() {
 		for {
 			select {
 			case <-cs.done:
@@ -54,15 +57,19 @@ func (cs *CronScheduler) Start(ctx context.Context) {
 				cs.tick(ctx)
 			}
 		}
-	}()
+	})
 }
 
 func (cs *CronScheduler) Stop() {
-	close(cs.done)
+	cs.stopOnce.Do(func() {
+		close(cs.done)
+	})
+	cs.wg.Wait()
 }
 
 func (cs *CronScheduler) tick(ctx context.Context) {
 	due, err := cs.store.GetCronRelaysDue(ctx)
+	now := time.Now().UTC()
 	if err != nil {
 		cs.logger.Error("failed to fetch due cron relays", slog.String("error", err.Error()))
 		return
@@ -71,11 +78,18 @@ func (cs *CronScheduler) tick(ctx context.Context) {
 	for _, relay := range due {
 		cs.logger.Info("firing cron relay", slog.String("relay_id", relay.ID))
 
-		payload, _ := json.Marshal(map[string]any{
+		payload, err := json.Marshal(map[string]any{
 			"trigger":  "cron",
-			"fired_at": time.Now().UTC().Format(time.RFC3339),
+			"fired_at": now.Format(time.RFC3339),
 			"relay_id": relay.ID,
 		})
+
+		if err != nil {
+			cs.logger.Error("failed to marshal cron payload",
+				slog.String("relay_id", relay.ID),
+				slog.String("error", err.Error()))
+			continue
+		}
 
 		job := Job{
 			RelayID: relay.ID,
@@ -84,21 +98,36 @@ func (cs *CronScheduler) tick(ctx context.Context) {
 			MsgAck:  func(bool) {},
 		}
 
+		// Safely attempt to send to the channel, recovering if it was closed during shutdown
 		select {
+		case <-cs.done:
+			cs.logger.Info("cron scheduler stopping; skipping enqueue", slog.String("relay_id", relay.ID))
+			return
 		case cs.jobQueue <- job:
 		default:
-			cs.logger.Warn("job queue full, cron relay skipped", slog.String("relay_id", relay.ID))
+			cs.logger.Warn("job queue is full; cron relay skipped", slog.String("relay_id", relay.ID))
+		}
+
+		rawSchedule, ok := relay.TriggerConfig["schedule"]
+		if !ok {
+			cs.logger.Error("missing cron schedule in trigger config", slog.String("relay_id", relay.ID))
+			continue
+		}
+		schedule, ok := rawSchedule.(string)
+		if !ok || schedule == "" {
+			cs.logger.Error("invalid cron schedule in trigger config",
+				slog.String("relay_id", relay.ID))
 			continue
 		}
 
-		schedule, _ := relay.TriggerConfig["schedule"].(string)
-		nextRun, err := cronutil.ComputeNextRun(schedule, time.Now())
+		nextRun, err := cronutil.ComputeNextRun(schedule, now)
 		if err != nil {
 			cs.logger.Error("failed to compute next run",
 				slog.String("relay_id", relay.ID),
 				slog.String("error", err.Error()))
 			continue
 		}
+
 		if err := cs.store.UpdateRelayNextRun(ctx, relay.ID, &nextRun); err != nil {
 			cs.logger.Error("failed to update next_run_at",
 				slog.String("relay_id", relay.ID),

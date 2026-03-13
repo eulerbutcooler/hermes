@@ -41,12 +41,17 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Relay ID is required", http.StatusBadRequest)
 		return
 	}
-	body, err := io.ReadAll(io.LimitReader(r.Body, 1048576))
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		h.logger.Error("failed to read request body",
 			slog.String("relay_id", relayID),
 			slog.String("error", err.Error()),
 		)
+		if err.Error() == "http: request body too large" {
+			http.Error(w, "Payload Too Large (Max 1MB)", http.StatusRequestEntityTooLarge)
+			return
+		}
 		http.Error(w, "Failed to read body", http.StatusInternalServerError)
 		return
 	}

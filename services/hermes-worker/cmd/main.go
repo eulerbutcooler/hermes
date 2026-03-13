@@ -107,8 +107,9 @@ func main() {
 	if err := consumer.Stop(); err != nil {
 		appLogger.Error("error stopping consumer", slog.String("error", err.Error()))
 	}
-	cancel()
 	cronScheduler.Stop()
+	appLogger.Info("producers stopped, draining queue")
 	pool.Shutdown()
+	cancel()
 	appLogger.Info("Worker stoppped gracefully")
 }
