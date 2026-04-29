@@ -39,7 +39,7 @@ export function graphToDAGPayload(
       dagNodes.push({
         node_id: d.nodeId,
         action_type: "condition",
-        config: {},
+        config: d.condition as Record<string, unknown> ?? {},
       });
     }
   }
@@ -56,10 +56,21 @@ export function graphToDAGPayload(
     if (!targetNode) continue;
     const targetData = targetNode.data as { nodeId: string };
 
+    let edgeCondition = edge.data?.condition ?? null;
+
+    // Automatically generate condition for edges leaving a condition node
+    if (sourceNode.type === "condition" && !edgeCondition && edge.data?.branch) {
+      edgeCondition = {
+        field: `{{ steps['${sourceData.nodeId}'].output.result }}`,
+        operator: "==",
+        value: edge.data.branch,
+      };
+    }
+
     dagEdges.push({
       parent_node_id: sourceData.nodeId,
       child_node_id: targetData.nodeId,
-      condition: edge.data?.condition ?? null,
+      condition: edgeCondition,
     });
   }
 
@@ -122,6 +133,7 @@ export function dagPayloadToGraph(relay: RelayWithDAG): {
         data: {
           nodeId,
           label: "Condition",
+          condition: action.config as unknown as import("@/types/workflow").ConditionData,
         },
       };
       nodes.push(condNode);

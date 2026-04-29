@@ -145,3 +145,71 @@ func drillJSON(raw []byte, path string) (string, error) {
 		return string(b), nil
 	}
 }
+
+func EvaluateExpression(expr string, payload []byte, steps map[string]StepOutput) (string, error) {
+	return evaluate(expr, payload, steps)
+}
+
+func EvaluateCondition(cond map[string]any, payload []byte, steps map[string]StepOutput) bool {
+	if cond == nil {
+		return true
+	}
+
+	fieldRaw, ok := cond["field"].(string)
+	if !ok || strings.TrimSpace(fieldRaw) == "" {
+		return true
+	}
+
+	operator, _ := cond["operator"].(string)
+	valueRaw, _ := cond["value"].(string)
+
+	fieldExpr := strings.TrimPrefix(fieldRaw, "{{")
+	fieldExpr = strings.TrimSuffix(fieldExpr, "}}")
+	fieldExpr = strings.TrimSpace(fieldExpr)
+
+	actualValue, err := evaluate(fieldExpr, payload, steps)
+	if err != nil {
+		actualValue = ""
+	}
+
+	switch operator {
+	case "==":
+		return actualValue == valueRaw
+	case "!=":
+		return actualValue != valueRaw
+	case ">":
+		actualF, err1 := strconv.ParseFloat(actualValue, 64)
+		expectedF, err2 := strconv.ParseFloat(valueRaw, 64)
+		if err1 == nil && err2 == nil {
+			return actualF > expectedF
+		}
+		return actualValue > valueRaw
+	case ">=":
+		actualF, err1 := strconv.ParseFloat(actualValue, 64)
+		expectedF, err2 := strconv.ParseFloat(valueRaw, 64)
+		if err1 == nil && err2 == nil {
+			return actualF >= expectedF
+		}
+		return actualValue >= valueRaw
+	case "<":
+		actualF, err1 := strconv.ParseFloat(actualValue, 64)
+		expectedF, err2 := strconv.ParseFloat(valueRaw, 64)
+		if err1 == nil && err2 == nil {
+			return actualF < expectedF
+		}
+		return actualValue < valueRaw
+	case "<=":
+		actualF, err1 := strconv.ParseFloat(actualValue, 64)
+		expectedF, err2 := strconv.ParseFloat(valueRaw, 64)
+		if err1 == nil && err2 == nil {
+			return actualF <= expectedF
+		}
+		return actualValue <= valueRaw
+	case "contains":
+		return strings.Contains(actualValue, valueRaw)
+	case "not_contains":
+		return !strings.Contains(actualValue, valueRaw)
+	default:
+		return actualValue == valueRaw
+	}
+}

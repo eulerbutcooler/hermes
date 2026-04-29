@@ -45,9 +45,15 @@ export function ConditionNode({ id, data, selected }: NodeProps<ConditionNodeTyp
             </svg>
           </button>
         </div>
-        <p className="text-[10px] text-zinc-500 leading-relaxed">
-          Click to define condition. Connect branches below.
-        </p>
+        {data.condition?.field ? (
+          <div className="mt-1 p-1.5 rounded bg-black/30 border border-white/5 font-mono text-[9px] text-zinc-400 break-all">
+            {data.condition.field} {data.condition.operator} {data.condition.value}
+          </div>
+        ) : (
+          <p className="text-[10px] text-zinc-500 leading-relaxed">
+            Click to define condition. Connect branches below.
+          </p>
+        )}
 
         {/* Branch handle labels */}
         <div className="flex justify-between mt-3 px-1">

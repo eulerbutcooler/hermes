@@ -19,7 +19,7 @@ import type {
 } from "@/types/relay";
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8081/api/v1";
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;

@@ -92,6 +92,7 @@ func (h *Handler) CreateRelay(w http.ResponseWriter, r *http.Request) {
 			h.respondError(w, http.StatusBadRequest,
 				"Unknown action type '"+action.ActionType+"' at index "+strconv.Itoa(i),
 				"VALIDATION_ERROR")
+			return
 		}
 		if action.Config == nil {
 			h.respondError(w, http.StatusBadRequest,

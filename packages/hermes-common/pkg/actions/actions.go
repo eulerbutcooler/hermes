@@ -48,6 +48,9 @@ var Registry = map[string]ActionSchema{
 			{Name: "to"},
 		},
 	},
+	"condition": {
+		Fields: nil,
+	},
 }
 
 func IsValidType(actionType string) bool {

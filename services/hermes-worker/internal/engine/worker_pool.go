@@ -158,6 +158,7 @@ func (wp *WorkerPool) process(ctx context.Context, job Job, logger *slog.Logger)
 
 	outputsMap := make(map[string]StepOutput)
 	teOutputsMap := make(map[string]templateengine.StepOutput)
+	skippedNodes := make(map[string]bool)
 	var outputsMutex sync.Mutex
 
 	for waveIdx, wave := range waves {
@@ -180,7 +181,46 @@ func (wp *WorkerPool) process(ctx context.Context, job Job, logger *slog.Logger)
 				for k, v := range teOutputsMap {
 					teMapCopy[k] = v
 				}
+
+				shouldSkip := false
+				parents := graph.Parents(nodeID)
+				for _, parentEdge := range parents {
+					if skippedNodes[parentEdge.From] {
+						shouldSkip = true
+						break
+					}
+				}
+
+				if !shouldSkip && len(parents) > 0 {
+					hasValidPath := false
+					for _, parentEdge := range parents {
+						if len(parentEdge.Condition) == 0 {
+							hasValidPath = true
+							break
+						}
+						if templateengine.EvaluateCondition(parentEdge.Condition, job.Payload, teMapCopy) {
+							hasValidPath = true
+							break
+						}
+					}
+					if !hasValidPath {
+						shouldSkip = true
+					}
+				}
+
+				if shouldSkip {
+					skippedNodes[nodeID] = true
+				}
 				outputsMutex.Unlock()
+
+				if shouldSkip {
+					logger.Debug("skipping node due to condition or parent skip", slog.String("node_id", nodeID))
+					stepID, _ := wp.Store.CreateExecutionStep(waveCtx, executionID, nodeID, act.ActionType, nil)
+					if stepID != "" {
+						_ = wp.Store.CompleteExecutionStep(context.Background(), stepID, "skipped", "", nil)
+					}
+					return nil
+				}
 
 				resolved = templateengine.Resolve(resolved, job.Payload, teMapCopy)
 
@@ -191,16 +231,27 @@ func (wp *WorkerPool) process(ctx context.Context, job Job, logger *slog.Logger)
 
 				logger.Debug("executing action", slog.String("node_id", nodeID), slog.String("action_type", act.ActionType))
 
-				executor, pluginErr := wp.Registry.Get(act.ActionType)
-				if pluginErr != nil {
-					_ = wp.Store.CompleteExecutionStep(context.Background(), stepID, "failed", pluginErr.Error(), nil)
-					return pluginErr
-				}
+				var output []byte
+				if act.ActionType == "condition" {
+					isTrue := templateengine.EvaluateCondition(act.Config, job.Payload, teMapCopy)
+					if isTrue {
+						output = []byte(`{"result": "true"}`)
+					} else {
+						output = []byte(`{"result": "false"}`)
+					}
+				} else {
+					executor, pluginErr := wp.Registry.Get(act.ActionType)
+					if pluginErr != nil {
+						_ = wp.Store.CompleteExecutionStep(context.Background(), stepID, "failed", pluginErr.Error(), nil)
+						return pluginErr
+					}
 
-				output, execErr := executor.Execute(waveCtx, resolved, job.Payload, outputsMap)
-				if execErr != nil {
-					_ = wp.Store.CompleteExecutionStep(context.Background(), stepID, "failed", execErr.Error(), nil)
-					return fmt.Errorf("action %s (%s) failed: %w", act.ActionType, nodeID, execErr)
+					var execErr error
+					output, execErr = executor.Execute(waveCtx, resolved, job.Payload, outputsMap)
+					if execErr != nil {
+						_ = wp.Store.CompleteExecutionStep(context.Background(), stepID, "failed", execErr.Error(), nil)
+						return fmt.Errorf("action %s (%s) failed: %w", act.ActionType, nodeID, execErr)
+					}
 				}
 
 				if completeErr := wp.Store.CompleteExecutionStep(context.Background(), stepID, "success", "", output); completeErr != nil {

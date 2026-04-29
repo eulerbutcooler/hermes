@@ -38,7 +38,7 @@ func getEnv(key, defaultValue string) string {
 func LoadConfig() *Config {
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "3000"
+		port = "8081"
 	}
 	HooksURL := os.Getenv("HOOKS_URL")
 	if HooksURL == "" {
@@ -54,7 +54,7 @@ func LoadConfig() *Config {
 	}
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if frontendURL == "" {
-		frontendURL = "http://localhost:3001"
+		frontendURL = "http://localhost:3000"
 	}
 	log.Printf("Loaded Config: Port=%s", port)
 	cfg := &Config{
@@ -72,14 +72,14 @@ func LoadConfig() *Config {
 		cfg.GoogleOAuth = &OAuthProviderConfig{
 			ClientID:     id,
 			ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-			RedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "http://localhost:3000/api/v1/auth/callback/google"),
+			RedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "http://localhost:8081/api/v1/auth/callback/google"),
 		}
 	}
 	if id := os.Getenv("MICROSOFT_CLIENT_ID"); id != "" {
 		cfg.MicrosoftOAuth = &OAuthProviderConfig{
 			ClientID:     id,
 			ClientSecret: os.Getenv("MICROSOFT_CLIENT_SECRET"),
-			RedirectURL:  getEnv("MICROSOFT_REDIRECT_URL", "http://localhost:3000/api/v1/auth/callback/microsoft"),
+			RedirectURL:  getEnv("MICROSOFT_REDIRECT_URL", "http://localhost:8081/api/v1/auth/callback/microsoft"),
 		}
 	}
 	return cfg
