@@ -27,33 +27,33 @@ func TestResolve_PayloadDrill(t *testing.T) {
 	}
 }
 
-func TestResolve_PrevOutput(t *testing.T) {
-	steps := []StepOutput{
-		{
+func TestResolve_NodeOutput(t *testing.T) {
+	steps := map[string]StepOutput{
+		"node_id": {
 			ActionType: "http_request",
-			OrderIndex: 0,
+			NodeID:     "node_id",
 			Output:     json.RawMessage(`{"status":"ok","count":42}`),
 		},
 	}
 	cfg := map[string]any{
-		"body": "Previous result: {{prev.output.status}}, count={{prev.output.count}}",
+		"body": "Result: {{steps['node_id'].output.status}}, count={{steps['node_id'].output.count}}",
 	}
 	result := Resolve(cfg, nil, steps)
-	if result["body"] != "Previous result: ok, count=42" {
+	if result["body"] != "Result: ok, count=42" {
 		t.Errorf("got %q", result["body"])
 	}
 }
 
-func TestResolve_PrevOutputFull(t *testing.T) {
-	steps := []StepOutput{
-		{
+func TestResolve_NodeOutputFull(t *testing.T) {
+	steps := map[string]StepOutput{
+		"node1": {
 			ActionType: "http_request",
-			OrderIndex: 0,
+			NodeID:     "node1",
 			Output:     json.RawMessage(`{"data":"hello"}`),
 		},
 	}
 	cfg := map[string]any{
-		"body": "{{prev.output}}",
+		"body": "{{steps['node1'].output}}",
 	}
 	result := Resolve(cfg, nil, steps)
 	if result["body"] != `{"data":"hello"}` {
@@ -62,20 +62,20 @@ func TestResolve_PrevOutputFull(t *testing.T) {
 }
 
 func TestResolve_StepsIndex(t *testing.T) {
-	steps := []StepOutput{
-		{
+	steps := map[string]StepOutput{
+		"step0": {
 			ActionType: "debug_log",
-			OrderIndex: 0,
+			NodeID:     "step0",
 			Output:     json.RawMessage(`{"logged":true}`),
 		},
-		{
+		"step1": {
 			ActionType: "http_request",
-			OrderIndex: 1,
+			NodeID:     "step1",
 			Output:     json.RawMessage(`{"response":"pong"}`),
 		},
 	}
 	cfg := map[string]any{
-		"msg": "Step0={{steps[0].output.logged}}, Step1={{steps[1].output.response}}",
+		"msg": "Step0={{steps['step0'].output.logged}}, Step1={{steps['step1'].output.response}}",
 	}
 	result := Resolve(cfg, nil, steps)
 	if result["msg"] != "Step0=true, Step1=pong" {
@@ -83,12 +83,12 @@ func TestResolve_StepsIndex(t *testing.T) {
 	}
 }
 
-func TestResolve_NoPrevSteps(t *testing.T) {
+func TestResolve_MissingStep(t *testing.T) {
 	cfg := map[string]any{
-		"msg": "no prev: {{prev.output.x}}",
+		"msg": "missing: {{steps['missing'].output.x}}",
 	}
 	result := Resolve(cfg, nil, nil)
-	if result["msg"] != "no prev: {{prev.output.x}}" {
+	if result["msg"] != "missing: {{steps['missing'].output.x}}" {
 		t.Errorf("got %q", result["msg"])
 	}
 }
@@ -112,22 +112,12 @@ func TestResolve_NonStringValuesUntouched(t *testing.T) {
 	}
 }
 
-func TestResolve_OutOfBoundsStepIndex(t *testing.T) {
-	cfg := map[string]any{
-		"msg": "{{steps[5].output.x}}",
-	}
-	result := Resolve(cfg, nil, nil)
-	if result["msg"] != "{{steps[5].output.x}}" {
-		t.Errorf("got %q", result["msg"])
-	}
-}
-
 func TestResolve_MultipleTemplatesInOneString(t *testing.T) {
-	steps := []StepOutput{
-		{Output: json.RawMessage(`{"a":"alpha"}`)},
+	steps := map[string]StepOutput{
+		"nodeA": {Output: json.RawMessage(`{"a":"alpha"}`)},
 	}
 	cfg := map[string]any{
-		"msg": "payload={{payload.x}} prev={{prev.output.a}}",
+		"msg": "payload={{payload.x}} prev={{steps['nodeA'].output.a}}",
 	}
 	result := Resolve(cfg, []byte(`{"x":"hello"}`), steps)
 	if result["msg"] != "payload=hello prev=alpha" {

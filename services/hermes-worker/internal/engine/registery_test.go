@@ -13,7 +13,7 @@ type fakeExecutor struct {
 	output json.RawMessage
 }
 
-func (f *fakeExecutor) Execute(_ context.Context, _ map[string]any, _ []byte, _ []StepOutput) (json.RawMessage, error) {
+func (f *fakeExecutor) Execute(ctx context.Context, config map[string]any, payload []byte, prevOutputs map[string]StepOutput) (json.RawMessage, error) {
 	f.called = true
 	return f.output, f.err
 }

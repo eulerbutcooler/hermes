@@ -18,7 +18,7 @@ type RelayStorer interface {
 	GetAllRelays(ctx context.Context, userID string) ([]models.Relay, error)
 	GetRelay(ctx context.Context, relayID, userID string) (*models.RelayWithActions, error)
 	UpdateRelay(ctx context.Context, relayID, userID string, req models.UpdateRelayRequest) (*models.Relay, error)
-	UpdateRelayActions(ctx context.Context, relayID, userID string, actions []models.CreateRelayActionInput) (*models.RelayWithActions, error)
+	UpdateRelayActions(ctx context.Context, relayID, userID string, req models.UpdateRelayActionsRequest) (*models.RelayWithActions, error)
 	DeleteRelay(ctx context.Context, relayID, userID string) error
 	GetExecutions(ctx context.Context, relayID, userID string, limit int) ([]models.Execution, error)
 	GetExecutionSteps(ctx context.Context, executionID, userID string) ([]models.ExecutionStep, error)

@@ -89,9 +89,9 @@ func (s *RelayStore) CreateRelay(ctx context.Context, req models.CreateRelayRequ
 	}
 	actions := make([]models.RelayAction, 0, len(req.Actions))
 
-	queryAction := `INSERT INTO relay_actions(id,relay_id,action_type, config, order_index,created_at,updated_at)
+	queryAction := `INSERT INTO relay_actions(id,relay_id,action_type, config, node_id,created_at,updated_at)
 	VALUES ($1,$2,$3,$4,$5,$6,$7)
-	RETURNING id,relay_id,action_type,config,order_index,created_at,updated_at`
+	RETURNING id,relay_id,action_type,config,node_id,created_at,updated_at`
 
 	for _, actionReq := range req.Actions {
 		actionID := uuid.New().String()
@@ -101,8 +101,8 @@ func (s *RelayStore) CreateRelay(ctx context.Context, req models.CreateRelayRequ
 		}
 		var action models.RelayAction
 		var configBytes []byte
-		err = tx.QueryRow(ctx, queryAction, actionID, relayID, actionReq.ActionType, configJSON, actionReq.OrderIndex, now, now).Scan(
-			&action.ID, &action.RelayID, &action.ActionType, &configBytes, &action.OrderIndex, &action.CreatedAt, &action.UpdatedAt)
+		err = tx.QueryRow(ctx, queryAction, actionID, relayID, actionReq.ActionType, configJSON, actionReq.NodeID, now, now).Scan(
+			&action.ID, &action.RelayID, &action.ActionType, &configBytes, &action.NodeID, &action.CreatedAt, &action.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("insert action: %w", err)
 		}
@@ -110,6 +110,30 @@ func (s *RelayStore) CreateRelay(ctx context.Context, req models.CreateRelayRequ
 			return nil, fmt.Errorf("unmarshal action config: %w", err)
 		}
 		actions = append(actions, action)
+	}
+	edges := make([]models.RelayEdge, 0, len(req.Edges))
+	queryEdge := `INSERTN INTO relay_edges(relay_id,parent_node_id,child_node_id,condition, created_at)
+	VALUES ($1,$2,$3,$4,$5)
+	RETURNING parent_node_id, child_node_id,condition`
+
+	for _, edgeReq := range req.Edges {
+		var edge models.RelayEdge
+		var condBytes []byte
+		condJSON, err := json.Marshal(edgeReq.Condition)
+		if err != nil {
+			return nil, fmt.Errorf("marshal edge cond: %w", err)
+		}
+		err = tx.QueryRow(ctx, queryEdge, relayID, edgeReq.ParentNodeID, edgeReq.ChildNodeID, condJSON, now).Scan(
+			&edge.ParentNodeID, &edge.ChildNodeID, &condBytes)
+		if err != nil {
+			return nil, fmt.Errorf("insert edge: %w", err)
+		}
+		if len(condBytes) > 0 {
+			if err := json.Unmarshal(condBytes, &edge.Condition); err != nil {
+				return nil, fmt.Errorf("unmarshal edge cond: %w", err)
+			}
+		}
+		edges = append(edges, edge)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -119,6 +143,7 @@ func (s *RelayStore) CreateRelay(ctx context.Context, req models.CreateRelayRequ
 	return &models.RelayWithActions{
 		Relay:   relay,
 		Actions: actions,
+		Edges:   edges,
 	}, nil
 }
 
@@ -204,10 +229,9 @@ func (s *RelayStore) GetRelay(ctx context.Context, relayID, userID string) (*mod
 	}
 
 	queryActions := `
-		SELECT id, relay_id, action_type, config, order_index, created_at, updated_at
+		SELECT id, relay_id, action_type, config, node_id, created_at, updated_at
 		FROM relay_actions
 		WHERE relay_id = $1
-		ORDER BY order_index ASC
 	`
 
 	rows, err := s.db.Query(ctx, queryActions, relayID)
@@ -225,7 +249,7 @@ func (s *RelayStore) GetRelay(ctx context.Context, relayID, userID string) (*mod
 			&action.RelayID,
 			&action.ActionType,
 			&configBytes,
-			&action.OrderIndex,
+			&action.NodeID,
 			&action.CreatedAt,
 			&action.UpdatedAt,
 		)
@@ -244,9 +268,41 @@ func (s *RelayStore) GetRelay(ctx context.Context, relayID, userID string) (*mod
 		return nil, fmt.Errorf("rows error: %w", err)
 	}
 
+	queryEdges := `
+		SELECT parent_node_id, child_node_id, condition
+		FROM relay_edges
+		WHERE relay_id = $1
+	`
+
+	edgeRows, err := s.db.Query(ctx, queryEdges, relayID)
+	if err != nil {
+		return nil, fmt.Errorf("query edges: %w", err)
+	}
+	defer edgeRows.Close()
+
+	edges := make([]models.RelayEdge, 0)
+	for edgeRows.Next() {
+		var edge models.RelayEdge
+		var condBytes []byte
+		err := edgeRows.Scan(&edge.ParentNodeID, &edge.ChildNodeID, &condBytes)
+		if err != nil {
+			return nil, fmt.Errorf("scan edge: %w", err)
+		}
+		if len(condBytes) > 0 {
+			if err := json.Unmarshal(condBytes, &edge.Condition); err != nil {
+				return nil, fmt.Errorf("unmarshal edge cond: %w", err)
+			}
+		}
+		edges = append(edges, edge)
+	}
+	if err := edgeRows.Err(); err != nil {
+		return nil, fmt.Errorf("edges rows error: %w", err)
+	}
+
 	return &models.RelayWithActions{
 		Relay:   relay,
 		Actions: actions,
+		Edges:   edges,
 	}, nil
 }
 
@@ -340,13 +396,12 @@ func (s *RelayStore) UpdateRelay(ctx context.Context, relayID, userID string, re
 	return &relay, nil
 }
 
-func (s *RelayStore) UpdateRelayActions(ctx context.Context, relayID, userID string, actionInputs []models.CreateRelayActionInput) (*models.RelayWithActions, error) {
+func (s *RelayStore) UpdateRelayActions(ctx context.Context, relayID, userID string, req models.UpdateRelayActionsRequest) (*models.RelayWithActions, error) {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
-
 	var relay models.Relay
 	err = tx.QueryRow(ctx,
 		`SELECT id, user_id, name, description, webhook_path, is_active, created_at, updated_at, trigger_type, trigger_config
@@ -359,19 +414,21 @@ func (s *RelayStore) UpdateRelayActions(ctx context.Context, relayID, userID str
 	if err != nil {
 		return nil, fmt.Errorf("query relay: %w", err)
 	}
-
+	_, err = tx.Exec(ctx, `DELETE FROM relay_edges WHERE relay_id = $1`, relayID)
+	if err != nil {
+		return nil, fmt.Errorf("delete old edges: %w", err)
+	}
 	_, err = tx.Exec(ctx, `DELETE FROM relay_actions WHERE relay_id = $1`, relayID)
 	if err != nil {
 		return nil, fmt.Errorf("delete old actions: %w", err)
 	}
-
 	now := time.Now()
-	queryAction := `INSERT INTO relay_actions(id, relay_id, action_type, config, order_index, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7)
-		RETURNING id, relay_id, action_type, config, order_index, created_at, updated_at`
 
-	actions := make([]models.RelayAction, 0, len(actionInputs))
-	for _, actionReq := range actionInputs {
+	actions := make([]models.RelayAction, 0, len(req.Actions))
+	queryAction := `INSERT INTO relay_actions(id, relay_id, action_type, config, node_id, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7)
+		RETURNING id, relay_id, action_type, config, node_id, created_at, updated_at`
+	for _, actionReq := range req.Actions {
 		actionID := uuid.New().String()
 		configJSON, err := json.Marshal(actionReq.Config)
 		if err != nil {
@@ -379,8 +436,8 @@ func (s *RelayStore) UpdateRelayActions(ctx context.Context, relayID, userID str
 		}
 		var action models.RelayAction
 		var configBytes []byte
-		err = tx.QueryRow(ctx, queryAction, actionID, relayID, actionReq.ActionType, configJSON, actionReq.OrderIndex, now, now).Scan(
-			&action.ID, &action.RelayID, &action.ActionType, &configBytes, &action.OrderIndex, &action.CreatedAt, &action.UpdatedAt)
+		err = tx.QueryRow(ctx, queryAction, actionID, relayID, actionReq.ActionType, configJSON, actionReq.NodeID, now, now).Scan(
+			&action.ID, &action.RelayID, &action.ActionType, &configBytes, &action.NodeID, &action.CreatedAt, &action.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("insert action: %w", err)
 		}
@@ -389,23 +446,42 @@ func (s *RelayStore) UpdateRelayActions(ctx context.Context, relayID, userID str
 		}
 		actions = append(actions, action)
 	}
-
+	edges := make([]models.RelayEdge, 0, len(req.Edges))
+	queryEdge := `INSERT INTO relay_edges(relay_id, parent_node_id, child_node_id, condition, created_at)
+	VALUES ($1,$2,$3,$4,$5)
+	RETURNING parent_node_id, child_node_id, condition`
+	for _, edgeReq := range req.Edges {
+		var edge models.RelayEdge
+		var condBytes []byte
+		condJSON, err := json.Marshal(edgeReq.Condition)
+		if err != nil {
+			return nil, fmt.Errorf("marshal edge cond: %w", err)
+		}
+		err = tx.QueryRow(ctx, queryEdge, relayID, edgeReq.ParentNodeID, edgeReq.ChildNodeID, condJSON, now).Scan(&edge.ParentNodeID, &edge.ChildNodeID, &condBytes)
+		if err != nil {
+			return nil, fmt.Errorf("insert edge: %w", err)
+		}
+		if len(condBytes) > 0 {
+			if err := json.Unmarshal(condBytes, &edge.Condition); err != nil {
+				return nil, fmt.Errorf("unmarshal edge cond: %w", err)
+			}
+		}
+		edges = append(edges, edge)
+	}
 	_, err = tx.Exec(ctx, `UPDATE relays SET updated_at = $1 WHERE id = $2`, now, relayID)
 	if err != nil {
 		return nil, fmt.Errorf("update relay timestamp: %w", err)
 	}
 	relay.UpdatedAt = now
-
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit transaction: %w", err)
 	}
-
 	return &models.RelayWithActions{
 		Relay:   relay,
 		Actions: actions,
+		Edges:   edges,
 	}, nil
 }
-
 func (s *RelayStore) DeleteRelay(ctx context.Context, relayID, userID string) error {
 	query := `DELETE FROM relays WHERE id = $1 AND user_id= $2`
 	result, err := s.db.Exec(ctx, query, relayID, userID)
@@ -485,12 +561,11 @@ func (s *RelayStore) GetExecutions(ctx context.Context, relayID, userID string, 
 
 func (s *RelayStore) GetExecutionSteps(ctx context.Context, executionID, userID string) ([]models.ExecutionStep, error) {
 	query := `
-		SELECT es.id, es.execution_id, es.order_index, es.action_type, es.status, es.input, es.output, es.error_message, es.started_at, es.finished_at
+		SELECT es.id, es.execution_id, es.node_id, es.action_type, es.status, es.input, es.output, es.error_message, es.started_at, es.finished_at
 		FROM execution_steps es
 		JOIN executions e ON e.id = es.execution_id
 		JOIN relays r ON r.id = e.relay_id
 		WHERE es.execution_id = $1 AND r.user_id = $2
-		ORDER BY es.order_index ASC
 	`
 
 	rows, err := s.db.Query(ctx, query, executionID, userID)
@@ -509,7 +584,7 @@ func (s *RelayStore) GetExecutionSteps(ctx context.Context, executionID, userID 
 		err := rows.Scan(
 			&step.ID,
 			&step.ExecutionID,
-			&step.OrderIndex,
+			&step.NodeID,
 			&step.ActionType,
 			&step.Status,
 			&inputBytes,

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/eulerbutcooler/hermes/packages/hermes-common/pkg/actions"
+	"github.com/eulerbutcooler/hermes/packages/hermes-common/pkg/dag"
 	"github.com/eulerbutcooler/hermes/services/hermes-core/internal/models"
 	"github.com/eulerbutcooler/hermes/services/hermes-core/internal/store"
 	"github.com/go-chi/chi/v5"
@@ -104,6 +105,11 @@ func (h *Handler) CreateRelay(w http.ResponseWriter, r *http.Request) {
 				"VALIDATION_ERROR")
 			return
 		}
+	}
+
+	if err := validateDAG(req.Actions, req.Edges); err != nil {
+		h.respondError(w, http.StatusBadRequest, "Invalid workflow graph: "+err.Error(), "INVALID_GRAPH")
+		return
 	}
 
 	relay, err := h.store.CreateRelay(r.Context(), req)
@@ -340,7 +346,12 @@ func (h *Handler) UpdateRelayActions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	relay, err := h.store.UpdateRelayActions(r.Context(), relayID, userID, req.Actions)
+	if err := validateDAG(req.Actions, req.Edges); err != nil {
+		h.respondError(w, http.StatusBadRequest, "Invalid workflow graph: "+err.Error(), "INVALID_GRAPH")
+		return
+	}
+
+	relay, err := h.store.UpdateRelayActions(r.Context(), relayID, userID, req)
 	if err != nil {
 		if errors.Is(err, store.ErrRelayNotFound) {
 			h.respondError(w, http.StatusNotFound, "Relay not found", "NOT_FOUND")
@@ -496,4 +507,22 @@ func (h *Handler) DeleteSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.respondSuccess(w, http.StatusOK, "Secret deleted", map[string]string{"deleted_id": secretID})
+}
+
+func validateDAG(actions []models.CreateRelayActionInput, edges []models.RelayEdge) error {
+	dagNodes := make([]dag.Node, len(actions))
+	for i, act := range actions {
+		if act.NodeID == "" {
+			return errors.New("node_id is required for all actions")
+		}
+		dagNodes[i] = dag.Node{ID: act.NodeID}
+	}
+
+	dagEdges := make([]dag.Edge, len(edges))
+	for i, e := range edges {
+		dagEdges[i] = dag.Edge{From: e.ParentNodeID, To: e.ChildNodeID, Condition: e.Condition}
+	}
+
+	_, err := dag.New(dagNodes, dagEdges)
+	return err
 }

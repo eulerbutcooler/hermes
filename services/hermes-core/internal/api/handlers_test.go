@@ -66,7 +66,7 @@ func (m *mockRelayStore) UpdateRelay(_ context.Context, _, _ string, _ models.Up
 	return m.updateRelayResult, m.updateRelayErr
 }
 
-func (m *mockRelayStore) UpdateRelayActions(_ context.Context, _, _ string, _ []models.CreateRelayActionInput) (*models.RelayWithActions, error) {
+func (m *mockRelayStore) UpdateRelayActions(_ context.Context, _, _ string, _ models.UpdateRelayActionsRequest) (*models.RelayWithActions, error) {
 	return m.updateRelayActionsResult, m.updateRelayActionsErr
 }
 
@@ -332,7 +332,7 @@ func TestCreateRelay_Success(t *testing.T) {
 					RelayID:    "relay-1",
 					ActionType: "debug_log",
 					Config:     map[string]any{"prefix": "TEST"},
-					OrderIndex: 0,
+					NodeID:     "node_0",
 					CreatedAt:  now,
 					UpdatedAt:  now,
 				},
@@ -346,7 +346,7 @@ func TestCreateRelay_Success(t *testing.T) {
 		"name":        "My Relay",
 		"description": "Test relay",
 		"actions": []map[string]any{
-			{"action_type": "debug_log", "config": map[string]any{"prefix": "TEST"}, "order_index": 0},
+			{"action_type": "debug_log", "config": map[string]any{"prefix": "TEST"}, "node_id": "node_0"},
 		},
 	})
 
@@ -377,7 +377,7 @@ func TestCreateRelay_MissingName(t *testing.T) {
 	body, _ := json.Marshal(map[string]any{
 		"name": "",
 		"actions": []map[string]any{
-			{"action_type": "debug_log", "config": map[string]any{}, "order_index": 0},
+			{"action_type": "debug_log", "config": map[string]any{}, "node_id": "node_0"},
 		},
 	})
 
@@ -415,7 +415,7 @@ func TestCreateRelay_UnknownActionType(t *testing.T) {
 	body, _ := json.Marshal(map[string]any{
 		"name": "My Relay",
 		"actions": []map[string]any{
-			{"action_type": "nonexistent_integration", "config": map[string]any{}, "order_index": 0},
+			{"action_type": "nonexistent_integration", "config": map[string]any{}, "node_id": "node_0"},
 		},
 	})
 
@@ -586,7 +586,7 @@ func TestGetExecutionSteps_Success(t *testing.T) {
 			{
 				ID:          "step-1",
 				ExecutionID: "exec-1",
-				OrderIndex:  0,
+				NodeID:      "node_0",
 				ActionType:  "http_request",
 				Status:      "success",
 				Input: map[string]any{
