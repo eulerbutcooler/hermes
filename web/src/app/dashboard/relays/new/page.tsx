@@ -27,13 +27,13 @@ export default function NewRelayPage() {
   const [triggerType, setTriggerType] = useState<TriggerType>("webhook");
   const [cronSchedule, setCronSchedule] = useState("0 9 * * *");
   const [actions, setActions] = useState<CreateRelayActionInput[]>([
-    { action_type: "debug_log", config: {}, order_index: 0 },
+    { action_type: "debug_log", config: {}, node_id: `action_${Math.random().toString(36).substr(2, 6)}` },
   ]);
 
   const addAction = () =>
     setActions((prev) => [
       ...prev,
-      { action_type: "debug_log", config: {}, order_index: prev.length },
+      { action_type: "debug_log", config: {}, node_id: `action_${Math.random().toString(36).substr(2, 6)}` },
     ]);
 
   const updateAction = (index: number, updated: CreateRelayActionInput) =>
@@ -41,9 +41,7 @@ export default function NewRelayPage() {
 
   const removeAction = (index: number) =>
     setActions((prev) =>
-      prev
-        .filter((_, i) => i !== index)
-        .map((a, i) => ({ ...a, order_index: i })),
+      prev.filter((_, i) => i !== index)
     );
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
@@ -71,7 +69,7 @@ export default function NewRelayPage() {
   };
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="mx-auto w-full max-w-5xl p-8">
       <div className="mb-8">
         <h1 className="text-xl font-bold text-white">New Relay</h1>
         <p className="mt-0.5 text-sm text-zinc-500">

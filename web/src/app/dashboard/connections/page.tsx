@@ -361,7 +361,7 @@ function ConnectionsContent() {
   }, [searchParams]);
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="mx-auto w-full max-w-5xl p-8">
       {/* Header */}
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
