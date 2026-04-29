@@ -173,12 +173,27 @@ export function dagPayloadToGraph(relay: RelayWithDAG): {
   }
 
   for (const e of relayEdges) {
+    let sourceHandle: string | undefined = undefined;
+    let branch: "true" | "false" | null = null;
+    
+    const parentNode = nodes.find((n) => n.id === e.parent_node_id);
+    if (parentNode && parentNode.type === "condition") {
+      if (e.condition?.value === "true") {
+        sourceHandle = "true";
+        branch = "true";
+      } else if (e.condition?.value === "false") {
+        sourceHandle = "false";
+        branch = "false";
+      }
+    }
+
     edges.push({
       id: `${e.parent_node_id}-${e.child_node_id}`,
       source: e.parent_node_id,
       target: e.child_node_id,
+      sourceHandle,
       type: "workflow",
-      data: { condition: e.condition ?? null },
+      data: { condition: e.condition ?? null, branch },
     });
   }
 
