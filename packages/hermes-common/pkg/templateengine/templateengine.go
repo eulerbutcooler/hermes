@@ -10,7 +10,7 @@ import (
 
 type StepOutput struct {
 	ActionType string          `json:"action_type"`
-	OrderIndex int             `json:"order_index"`
+	NodeID     string          `json:"node_id"`
 	Output     json.RawMessage `json:"output"`
 }
 
@@ -18,7 +18,7 @@ type StepOutput struct {
 var templatePattern = regexp.MustCompile(`\{\{\s*(.+?)\s*\}\}`)
 
 // Replaces any string values that contain {{ epxr }}
-func Resolve(config map[string]any, payload []byte, steps []StepOutput) map[string]any {
+func Resolve(config map[string]any, payload []byte, steps map[string]StepOutput) map[string]any {
 	out := make(map[string]any, len(config))
 	for k, v := range config {
 		switch val := v.(type) {
@@ -31,7 +31,7 @@ func Resolve(config map[string]any, payload []byte, steps []StepOutput) map[stri
 	return out
 }
 
-func resolveString(s string, payload []byte, steps []StepOutput) string {
+func resolveString(s string, payload []byte, steps map[string]StepOutput) string {
 	return templatePattern.ReplaceAllStringFunc(s, func(match string) string {
 		inner := templatePattern.FindStringSubmatch(match)
 		if len(inner) < 2 {
@@ -46,7 +46,7 @@ func resolveString(s string, payload []byte, steps []StepOutput) string {
 	})
 }
 
-func evaluate(expr string, payload []byte, steps []StepOutput) (string, error) {
+func evaluate(expr string, payload []byte, steps map[string]StepOutput) (string, error) {
 	parts := strings.SplitN(expr, ".", 2)
 	root := parts[0]
 
@@ -57,31 +57,15 @@ func evaluate(expr string, payload []byte, steps []StepOutput) (string, error) {
 		}
 		return drillJSON(payload, parts[1])
 
-	case root == "prev":
-		if len(steps) == 0 {
-			return "", fmt.Errorf("no previous step")
-		}
-		prev := steps[len(steps)-1]
-		if len(parts) == 1 {
-			return string(prev.Output), nil
-		}
-		rest := parts[1]
-		rest = strings.TrimPrefix(rest, "output")
-		rest = strings.TrimPrefix(rest, ".")
-		if rest == "" {
-			return string(prev.Output), nil
-		}
-		return drillJSON(prev.Output, rest)
+	case strings.HasPrefix(root, "steps['"):
+		nodeID := strings.TrimPrefix(root, "steps['")
+		nodeID = strings.TrimSuffix(nodeID, "']")
+		step, ok := steps[nodeID]
 
-	case strings.HasPrefix(root, "steps["):
-		idx, err := parseStepIndex(root)
-		if err != nil {
-			return "", err
+		if !ok {
+			return "", fmt.Errorf("step %q not found in outputs", nodeID)
 		}
-		if idx < 0 || idx >= len(steps) {
-			return "", fmt.Errorf("step index %d out of range (have %d steps)", idx, len(steps))
-		}
-		step := steps[idx]
+
 		if len(parts) == 1 {
 			return string(step.Output), nil
 		}

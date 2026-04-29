@@ -10,6 +10,7 @@ const (
 	TriggerCron    TriggerType = "cron"
 )
 
+// Relays
 type CreateRelayRequest struct {
 	Name          string                   `json:"name"`
 	UserID        string                   `json:"user_id"`
@@ -17,12 +18,19 @@ type CreateRelayRequest struct {
 	TriggerType   TriggerType              `json:"trigger_type,omitempty"`
 	TriggerConfig map[string]any           `json:"trigger_config,omitempty"`
 	Actions       []CreateRelayActionInput `json:"actions"`
+	Edges         []RelayEdge              `json:"edges"`
 }
 
 type CreateRelayActionInput struct {
+	NodeID     string         `json:"node_id"`
 	ActionType string         `json:"action_type"`
 	Config     map[string]any `json:"config"`
-	OrderIndex int            `json:"order_index"`
+}
+
+type RelayEdge struct {
+	ParentNodeID string         `json:"parent_node_id"`
+	ChildNodeID  string         `json:"child_node_id"`
+	Condition    map[string]any `json:"condition,omitempty"`
 }
 
 type UpdateRelayRequest struct {
@@ -35,7 +43,10 @@ type UpdateRelayRequest struct {
 
 type UpdateRelayActionsRequest struct {
 	Actions []CreateRelayActionInput `json:"actions"`
+	Edges   []RelayEdge              `json:"edges"`
 }
+
+// Execution
 
 type Execution struct {
 	ID             string          `json:"id"`
@@ -52,7 +63,7 @@ type Execution struct {
 type ExecutionStep struct {
 	ID           string         `json:"id"`
 	ExecutionID  string         `json:"execution_id"`
-	OrderIndex   int            `json:"order_index"`
+	NodeID       string         `json:"node_id"`
 	ActionType   string         `json:"action_type"`
 	Status       string         `json:"status"`
 	Input        map[string]any `json:"input,omitempty"`
@@ -79,14 +90,15 @@ type Relay struct {
 type RelayWithActions struct {
 	Relay
 	Actions []RelayAction `json:"actions"`
+	Edges   []RelayEdge   `json:"edges"`
 }
 
 type RelayAction struct {
 	ID         string         `json:"id"`
 	RelayID    string         `json:"relay_id"`
+	NodeID     string         `json:"node_id"`
 	ActionType string         `json:"action_type"`
 	Config     map[string]any `json:"config"`
-	OrderIndex int            `json:"order_index"`
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
 }

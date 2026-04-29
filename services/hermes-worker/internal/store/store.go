@@ -19,9 +19,15 @@ type CronRelay struct {
 }
 
 type RelayAction struct {
-	OrderIndex int
+	NodeID     string
 	ActionType string
 	Config     map[string]any
+}
+
+type RelayEdge struct {
+	ParentNodeID string
+	ChildNodeID  string
+	Condition    map[string]any
 }
 
 type Store struct {
@@ -52,16 +58,15 @@ func NewStore(dbURL string, enc *encryptor.Encryptor) (*Store, error) {
 	return &Store{db: pool, encryptor: enc}, nil
 }
 
-func (s *Store) GetRelayActions(ctx context.Context, relayID string) ([]RelayAction, error) {
-	query := `SELECT a.action_type, a.config, a.order_index
+func (s *Store) GetRelayGraph(ctx context.Context, relayID string) ([]RelayAction, []RelayEdge, error) {
+	actionsQuery := `SELECT a.node_id, a.action_type, a.config
 	FROM relays r
 	JOIN relay_actions a ON r.id=a.relay_id
-	WHERE r.id=$1 AND r.is_active=true
-	ORDER BY a.order_index ASC`
-
-	rows, err := s.db.Query(ctx, query, relayID)
+	WHERE r.id = $1 AND r.is_active=true
+	`
+	rows, err := s.db.Query(ctx, actionsQuery, relayID)
 	if err != nil {
-		return nil, fmt.Errorf("db error: %w", err)
+		return nil, nil, fmt.Errorf("db query actions error: %w", err)
 	}
 	defer rows.Close()
 
@@ -69,21 +74,51 @@ func (s *Store) GetRelayActions(ctx context.Context, relayID string) ([]RelayAct
 	for rows.Next() {
 		var act RelayAction
 		var configBytes []byte
-		if err := rows.Scan(&act.ActionType, &configBytes, &act.OrderIndex); err != nil {
-			return nil, fmt.Errorf("scan action: %w", err)
+		if err := rows.Scan(&act.NodeID, &act.ActionType, &configBytes); err != nil {
+			return nil, nil, fmt.Errorf("scan action: %w", err)
 		}
 		if err := json.Unmarshal(configBytes, &act.Config); err != nil {
-			return nil, fmt.Errorf("parse config: %w", err)
+			return nil, nil, fmt.Errorf("parse config: %w", err)
 		}
 		actions = append(actions, act)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows error: %w", err)
+		return nil, nil, fmt.Errorf("actions rows error: %w", err)
 	}
 	if len(actions) == 0 {
-		return nil, ErrNoActions
+		return nil, nil, ErrNoActions
 	}
-	return actions, nil
+
+	edgesQuery := `
+	SELECT parent_node_id, child_node_id, condition
+	FROM relay_edges
+	WHERE relay_id = $1`
+
+	edgeRows, err := s.db.Query(ctx, edgesQuery, relayID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("db query edges error: %w", err)
+	}
+
+	defer edgeRows.Close()
+
+	edges := make([]RelayEdge, 0)
+	for edgeRows.Next() {
+		var edge RelayEdge
+		var conditionBytes []byte
+		if err := edgeRows.Scan(&edge.ParentNodeID, &edge.ChildNodeID, &conditionBytes); err != nil {
+			return nil, nil, fmt.Errorf("scan edge: %w", err)
+		}
+		if len(conditionBytes) > 0 {
+			if err := json.Unmarshal(conditionBytes, &edge.Condition); err != nil {
+				return nil, nil, fmt.Errorf("parse edge condition: %w", err)
+			}
+		}
+		edges = append(edges, edge)
+	}
+	if err := edgeRows.Err(); err != nil {
+		return nil, nil, fmt.Errorf("edges rows error: %w", err)
+	}
+	return actions, edges, nil
 }
 
 func (s *Store) GetRelayOwner(ctx context.Context, relayID string) (string, error) {
@@ -224,9 +259,9 @@ func (s *Store) CompleteExecution(ctx context.Context, executionID, status, erro
 	return nil
 }
 
-func (s *Store) CreateExecutionStep(ctx context.Context, executionID string, orderIndex int, actionType string, input map[string]any) (string, error) {
+func (s *Store) CreateExecutionStep(ctx context.Context, executionID string, nodeID string, actionType string, input map[string]any) (string, error) {
 	query := `
-		INSERT INTO execution_steps (execution_id, order_index, action_type, status, input, started_at)
+		INSERT INTO execution_steps (execution_id, node_id, action_type, status, input, started_at)
 		VALUES ($1, $2, $3, $4, $5, NOW())
 		RETURNING id
 	`
@@ -241,7 +276,7 @@ func (s *Store) CreateExecutionStep(ctx context.Context, executionID string, ord
 	}
 
 	var stepID string
-	err := s.db.QueryRow(ctx, query, executionID, orderIndex, actionType, "running", inputJSON).Scan(&stepID)
+	err := s.db.QueryRow(ctx, query, executionID, nodeID, actionType, "running", inputJSON).Scan(&stepID)
 	if err != nil {
 		return "", fmt.Errorf("create execution step: %w", err)
 	}
