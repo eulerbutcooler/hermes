@@ -15,9 +15,9 @@ export interface Relay {
 export interface RelayAction {
   id: string;
   relay_id: string;
+  node_id: string;
   action_type: string;
   config: Record<string, unknown>;
-  order_index: number;
   created_at: string;
   updated_at: string;
 }
@@ -50,7 +50,7 @@ export interface Execution {
 export interface ExecutionStep {
   id: string;
   execution_id: string;
-  order_index: number;
+  node_id: string;
   action_type: string;
   status: "running" | "success" | "failed";
   input?: Record<string, unknown>;
@@ -58,6 +58,12 @@ export interface ExecutionStep {
   error_message?: string;
   started_at: string;
   finished_at?: string;
+}
+
+export interface RelayEdge {
+  parent_node_id: string;
+  child_node_id: string;
+  condition?: Record<string, unknown>;
 }
 
 export interface Secret {
@@ -69,15 +75,16 @@ export interface Secret {
 }
 
 export interface CreateRelayActionInput {
+  node_id: string;
   action_type: string;
   config: Record<string, unknown>;
-  order_index: number;
 }
 
 export interface CreateRelayRequest {
   name: string;
   description?: string;
   actions: CreateRelayActionInput[];
+  edges?: RelayEdge[];
   trigger_type?: TriggerType;
   trigger_config?: Record<string, unknown>;
 }
@@ -107,6 +114,7 @@ export interface Connection {
 
 export interface UpdateRelayActionsRequest {
   actions: CreateRelayActionInput[];
+  edges?: RelayEdge[];
 }
 
 export const ACTION_TYPES = [

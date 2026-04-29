@@ -3,11 +3,11 @@ import type { NextRequest } from 'next/server'
 
 const PUBLIC_PATHS = ['/login', '/register']
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const token = request.cookies.get('token')?.value
 
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p))
+  const isPublic = pathname === '/' || PUBLIC_PATHS.some((p) => pathname.startsWith(p))
 
   // Redirect unauthenticated users away from protected routes
   if (!isPublic && !token) {
@@ -25,5 +25,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next|favicon.ico|api).*)'],
+  matcher: ['/((?!_next|api|.*\\..*).*)'],
 }

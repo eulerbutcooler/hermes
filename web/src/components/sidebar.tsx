@@ -75,10 +75,8 @@ export default function Sidebar() {
     <aside className="flex h-screen w-56 flex-col border-r border-white/10 bg-[#141414]">
       {/* Logo */}
       <div className="flex items-center gap-2 px-5 py-5 border-b border-white/10">
-        <div className="flex h-7 w-7 items-center justify-center rounded bg-orange-500 text-xs font-bold text-white">
-          H
-        </div>
-        <span className="text-sm font-semibold text-white">Hermes</span>
+        <img src="/logo.png" alt="Hermes" width={40} height={40} className="object-contain" />
+        <span className="text-base font-bold text-white tracking-wide">Hermes</span>
       </div>
 
       {/* Nav */}

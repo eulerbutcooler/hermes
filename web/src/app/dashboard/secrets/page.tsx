@@ -99,7 +99,7 @@ export default function SecretsPage() {
   }
 
   return (
-    <div className="p-8 max-w-2xl space-y-8">
+    <div className="mx-auto w-full max-w-5xl p-8 space-y-8">
       <div>
         <h1 className="text-xl font-bold text-white">Secrets</h1>
         <p className="mt-0.5 text-sm text-zinc-500">Store sensitive values and reference them in relay actions</p>

@@ -22,6 +22,8 @@ import {
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import Link from "next/link";
+
 
 function StatusBadge({ active }: { active: boolean }) {
   return (
@@ -150,7 +152,7 @@ function isHTTPRequestStepOutput(
   return typeof candidate.status_code === "number";
 }
 
-function StepCard({ step }: { step: ExecutionStep }) {
+function StepCard({ step, index }: { step: ExecutionStep; index: number }) {
   const isHTTPRequest = step.action_type === "http_request";
 
   return (
@@ -158,7 +160,7 @@ function StepCard({ step }: { step: ExecutionStep }) {
       <div className="mb-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-orange-500/10 text-xs font-bold text-orange-400">
-            {step.order_index + 1}
+            {index + 1}
           </span>
           <div>
             <p className="text-sm font-medium text-white">
@@ -282,8 +284,8 @@ function ExecutionRow({
               </div>
             ) : (
               <div className="space-y-3">
-                {steps.map((step) => (
-                  <StepCard key={step.id} step={step} />
+                {steps.map((step, index) => (
+                  <StepCard key={step.id} step={step} index={index} />
                 ))}
               </div>
             )}
@@ -415,7 +417,7 @@ export default function RelayDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-5xl space-y-4 p-8">
+      <div className="mx-auto w-full max-w-5xl space-y-4 p-8">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="h-12 animate-pulse rounded-lg bg-white/5" />
         ))}
@@ -425,14 +427,14 @@ export default function RelayDetailPage() {
 
   if (isError || !relay) {
     return (
-      <div className="p-8">
+      <div className="mx-auto w-full max-w-5xl p-8">
         <p className="text-sm text-red-400">Failed to load relay.</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl space-y-8 p-8">
+    <div className="mx-auto w-full max-w-5xl space-y-8 p-8">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="mb-1 flex items-center gap-3">
@@ -454,6 +456,12 @@ export default function RelayDetailPage() {
               Trigger
             </button>
           )}
+          <Link
+            href={`/dashboard/relays/builder/${relay.id}`}
+            className="rounded-lg border border-orange-500/25 bg-orange-500/8 px-3.5 py-1.5 text-xs font-medium text-orange-400 transition-colors hover:bg-orange-500/15 hover:text-orange-300"
+          >
+            Open in Builder
+          </Link>
           <button
             type="button"
             onClick={() => {
@@ -464,10 +472,10 @@ export default function RelayDetailPage() {
                 (relay.trigger_config?.schedule as string) ?? "0 9 * * *",
               );
               setEditActions(
-                relay.actions.map((a, i) => ({
+                relay.actions.map((a) => ({
                   action_type: a.action_type,
                   config: { ...a.config },
-                  order_index: i,
+                  node_id: a.node_id,
                 })),
               );
               setEditTab("general");
@@ -717,9 +725,7 @@ export default function RelayDetailPage() {
                         }
                         onRemove={(idx) =>
                           setEditActions((prev) =>
-                            prev
-                              .filter((_, j) => j !== idx)
-                              .map((a, j) => ({ ...a, order_index: j })),
+                            prev.filter((_, j) => j !== idx)
                           )
                         }
                       />
@@ -733,7 +739,7 @@ export default function RelayDetailPage() {
                         {
                           action_type: "debug_log",
                           config: {},
-                          order_index: prev.length,
+                          node_id: `action_${Math.random().toString(36).substr(2, 6)}`,
                         },
                       ])
                     }

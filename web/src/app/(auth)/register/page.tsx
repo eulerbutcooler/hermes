@@ -63,7 +63,7 @@ export default function RegisterPage() {
   )
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#111111] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-transparent px-4">
       <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-white/10 bg-[#1a1a1a] shadow-2xl">
         <div className="grid grid-cols-1 md:grid-cols-2">
 
@@ -71,7 +71,7 @@ export default function RegisterPage() {
           <div className="flex flex-col justify-center px-8 py-12 md:px-12">
             {/* Logo */}
             <div className="mb-8 flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded bg-orange-500 text-sm font-bold text-white">H</div>
+              <img src="/logo.png" alt="Hermes" width={32} height={32} className="object-contain" />
               <span className="text-lg font-semibold text-white">Hermes</span>
             </div>
 

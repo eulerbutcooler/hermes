@@ -159,6 +159,13 @@ function RelayRow({ relay }: { relay: Relay }) {
           >
             View
           </Link>
+          <Link
+            href={`/dashboard/relays/builder/${relay.id}`}
+            className="rounded-lg border border-orange-500/25 bg-orange-500/8 px-3 py-1.5 text-xs text-orange-400 transition-colors hover:bg-orange-500/15 hover:text-orange-300"
+            title="Open in visual builder"
+          >
+            Builder
+          </Link>
           <button
             type="button"
             onClick={handleDelete}
@@ -219,7 +226,7 @@ export default function RelaysPage() {
     console.log(error);
   }
   return (
-    <div className="p-8">
+    <div className="mx-auto w-full max-w-5xl p-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -228,26 +235,48 @@ export default function RelaysPage() {
             Manage your webhook automations
           </p>
         </div>
-        <Link
-          href="/dashboard/relays/new"
-          className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600"
-        >
-          <svg
-            aria-hidden="true"
-            className="h-4 w-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/relays/builder/new"
+            className="flex items-center gap-2 rounded-lg border border-orange-500/25 bg-orange-500/8 px-4 py-2 text-sm font-medium text-orange-400 transition-colors hover:bg-orange-500/15 hover:text-orange-300"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 4.5v15m7.5-7.5h-15"
-            />
-          </svg>
-          New Relay
-        </Link>
+            <svg
+              aria-hidden="true"
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+              />
+            </svg>
+            Builder
+          </Link>
+          <Link
+            href="/dashboard/relays/new"
+            className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600"
+          >
+            <svg
+              aria-hidden="true"
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 4.5v15m7.5-7.5h-15"
+              />
+            </svg>
+            New Relay
+          </Link>
+        </div>
       </div>
       {/* Content */}
       {isLoading && (
