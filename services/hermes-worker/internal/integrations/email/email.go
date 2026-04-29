@@ -28,7 +28,7 @@ func New(providers map[string]oauth.Provider, connStore ConnectionResolver) *Sen
 	}
 }
 
-func (s *Sender) Execute(ctx context.Context, cfg map[string]any, payload []byte, _ []engine.StepOutput) (json.RawMessage, error) {
+func (s *Sender) Execute(ctx context.Context, cfg map[string]any, payload []byte, _ map[string]engine.StepOutput) (json.RawMessage, error) {
 	connectionID, _ := cfg["connection_id"].(string)
 	if connectionID == "" {
 		return nil, fmt.Errorf("email_send: missing connection_id")

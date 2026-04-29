@@ -40,7 +40,7 @@ func New() *Executor {
 	}
 }
 
-func (e *Executor) Execute(ctx context.Context, cfg map[string]any, payload []byte, _ []engine.StepOutput) (json.RawMessage, error) {
+func (e *Executor) Execute(ctx context.Context, cfg map[string]any, payload []byte, _ map[string]engine.StepOutput) (json.RawMessage, error) {
 	url, _ := cfg["url"].(string)
 	if url == "" {
 		return nil, fmt.Errorf("missing url in http_request config")

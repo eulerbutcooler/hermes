@@ -14,7 +14,7 @@ func New() *LogExecutor {
 	return &LogExecutor{}
 }
 
-func (l *LogExecutor) Execute(ctx context.Context, config map[string]any, payload []byte, _ []engine.StepOutput) (json.RawMessage, error) {
+func (l *LogExecutor) Execute(ctx context.Context, config map[string]any, payload []byte, _ map[string]engine.StepOutput) (json.RawMessage, error) {
 	prefix, _ := config["prefix"].(string)
 	if prefix == "" {
 		prefix = "DEBUG_LOG"

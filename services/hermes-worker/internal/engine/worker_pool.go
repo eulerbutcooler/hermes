@@ -9,8 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/eulerbutcooler/hermes/packages/hermes-common/pkg/dag"
 	"github.com/eulerbutcooler/hermes/packages/hermes-common/pkg/templateengine"
 	"github.com/eulerbutcooler/hermes/services/hermes-worker/internal/store"
+	"golang.org/x/sync/errgroup"
 )
 
 type Job struct {
@@ -130,63 +132,101 @@ func (wp *WorkerPool) process(ctx context.Context, job Job, logger *slog.Logger)
 		return ownerErr
 	}
 
-	actions, fetchErr := wp.Store.GetRelayActions(ctx, job.RelayID)
+	actions, edges, fetchErr := wp.Store.GetRelayGraph(ctx, job.RelayID)
 	if fetchErr != nil {
 		return fetchErr
 	}
 
-	outputs := make([]StepOutput, 0, len(actions))
-	teSteps := make([]templateengine.StepOutput, 0, len(actions))
+	nodes := make([]dag.Node, len(actions))
+	actionMap := make(map[string]store.RelayAction)
+	for i, act := range actions {
+		nodes[i] = dag.Node{ID: act.NodeID}
+		actionMap[act.NodeID] = act
+	}
 
-	for _, act := range actions {
-		resolved, resolveErr := wp.resolveSecrets(ctx, userID, act.Config)
-		if resolveErr != nil {
-			return fmt.Errorf("action %s (order %d) secret resolution failed: %w",
-				act.ActionType, act.OrderIndex, resolveErr)
+	dagEdges := make([]dag.Edge, len(edges))
+	for i, e := range edges {
+		dagEdges[i] = dag.Edge{From: e.ParentNodeID, To: e.ChildNodeID, Condition: e.Condition}
+	}
+
+	graph, err := dag.New(nodes, dagEdges)
+	if err != nil {
+		return fmt.Errorf("invalid workflow graph: %w", err)
+	}
+
+	waves := graph.Waves()
+
+	outputsMap := make(map[string]StepOutput)
+	teOutputsMap := make(map[string]templateengine.StepOutput)
+	var outputsMutex sync.Mutex
+
+	for waveIdx, wave := range waves {
+		logger.Debug("executing wave", slog.Int("wave_index", waveIdx), slog.Int("nodes", len(wave)))
+
+		eg, waveCtx := errgroup.WithContext(ctx)
+
+		for _, nodeID := range wave {
+			nodeID := nodeID
+			act := actionMap[nodeID]
+
+			eg.Go(func() error {
+				resolved, resolveErr := wp.resolveSecrets(waveCtx, userID, act.Config)
+				if resolveErr != nil {
+					return fmt.Errorf("action %s (%s) secret resolution failed: %w", act.ActionType, nodeID, resolveErr)
+				}
+
+				outputsMutex.Lock()
+				teMapCopy := make(map[string]templateengine.StepOutput)
+				for k, v := range teOutputsMap {
+					teMapCopy[k] = v
+				}
+				outputsMutex.Unlock()
+
+				resolved = templateengine.Resolve(resolved, job.Payload, teMapCopy)
+
+				stepID, stepCreateErr := wp.Store.CreateExecutionStep(waveCtx, executionID, nodeID, act.ActionType, redactConfig(act.Config, resolved))
+				if stepCreateErr != nil {
+					return fmt.Errorf("create step for %s: %w", nodeID, stepCreateErr)
+				}
+
+				logger.Debug("executing action", slog.String("node_id", nodeID), slog.String("action_type", act.ActionType))
+
+				executor, pluginErr := wp.Registry.Get(act.ActionType)
+				if pluginErr != nil {
+					_ = wp.Store.CompleteExecutionStep(context.Background(), stepID, "failed", pluginErr.Error(), nil)
+					return pluginErr
+				}
+
+				output, execErr := executor.Execute(waveCtx, resolved, job.Payload, outputsMap)
+				if execErr != nil {
+					_ = wp.Store.CompleteExecutionStep(context.Background(), stepID, "failed", execErr.Error(), nil)
+					return fmt.Errorf("action %s (%s) failed: %w", act.ActionType, nodeID, execErr)
+				}
+
+				if completeErr := wp.Store.CompleteExecutionStep(context.Background(), stepID, "success", "", output); completeErr != nil {
+					logger.Error("failed to complete execution step", slog.String("step_id", stepID), slog.String("error", completeErr.Error()))
+				}
+
+				outputsMutex.Lock()
+				outputsMap[nodeID] = StepOutput{
+					ActionType: act.ActionType,
+					NodeID:     nodeID,
+					Output:     output,
+				}
+				teOutputsMap[nodeID] = templateengine.StepOutput{
+					ActionType: act.ActionType,
+					NodeID:     nodeID,
+					Output:     json.RawMessage(output),
+				}
+				outputsMutex.Unlock()
+
+				return nil
+			})
 		}
 
-		resolved = templateengine.Resolve(resolved, job.Payload, teSteps)
-		stepID, stepCreateErr := wp.Store.CreateExecutionStep(ctx, executionID, act.OrderIndex, act.ActionType, redactConfig(act.Config, resolved))
-		if stepCreateErr != nil {
-			return fmt.Errorf("create step for action %s (order %d): %w",
-				act.ActionType, act.OrderIndex, stepCreateErr)
+		if waveErr := eg.Wait(); waveErr != nil {
+			return waveErr
 		}
-
-		logger.Debug("executing action",
-			slog.String("action_type", act.ActionType),
-			slog.Int("order_index", act.OrderIndex),
-			slog.String("event_id", job.EventID))
-
-		executor, pluginErr := wp.Registry.Get(act.ActionType)
-		if pluginErr != nil {
-			_ = wp.Store.CompleteExecutionStep(ctx, stepID, "failed", pluginErr.Error(), nil)
-			return pluginErr
-		}
-
-		output, execErr := executor.Execute(ctx, resolved, job.Payload, outputs)
-		if execErr != nil {
-			_ = wp.Store.CompleteExecutionStep(ctx, stepID, "failed", execErr.Error(), nil)
-			return fmt.Errorf("action %s (order %d) failed: %w", act.ActionType, act.OrderIndex, execErr)
-		}
-
-		if completeErr := wp.Store.CompleteExecutionStep(ctx, stepID, "success", "", output); completeErr != nil {
-			logger.Error("failed to complete execution step",
-				slog.String("step_id", stepID),
-				slog.String("error", completeErr.Error()))
-		}
-
-		stepOut := StepOutput{
-			ActionType: act.ActionType,
-			OrderIndex: act.OrderIndex,
-			Output:     output,
-		}
-		outputs = append(outputs, stepOut)
-
-		teSteps = append(teSteps, templateengine.StepOutput{
-			ActionType: act.ActionType,
-			OrderIndex: act.OrderIndex,
-			Output:     json.RawMessage(output),
-		})
 	}
 
 	return nil

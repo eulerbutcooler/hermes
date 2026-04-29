@@ -28,7 +28,7 @@ func New() *Sender {
 	}
 }
 
-func (d *Sender) Execute(ctx context.Context, config map[string]any, payload []byte, _ []engine.StepOutput) (json.RawMessage, error) {
+func (d *Sender) Execute(ctx context.Context, config map[string]any, payload []byte, _ map[string]engine.StepOutput) (json.RawMessage, error) {
 	url, _ := config["webhook_url"].(string)
 	if url == "" {
 		return nil, fmt.Errorf("missing webhook_url in discord config")

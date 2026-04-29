@@ -26,7 +26,7 @@ func New() *Sender {
 	}
 }
 
-func (s *Sender) Execute(ctx context.Context, cfg map[string]any, payload []byte, _ []engine.StepOutput) (json.RawMessage, error) {
+func (s *Sender) Execute(ctx context.Context, cfg map[string]any, payload []byte, _ map[string]engine.StepOutput) (json.RawMessage, error) {
 	webhookURL, _ := cfg["webhook_url"].(string)
 	template, _ := cfg["message_template"].(string)
 
