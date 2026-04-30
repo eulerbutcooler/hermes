@@ -50,6 +50,7 @@ function CanvasInner({ onSave, onTrigger, isSaving }: WorkflowCanvasProps) {
     addEdge,
     selectNode,
     selectEdge,
+    setMeta,
     undo,
     redo,
   } = useWorkflow();
@@ -160,8 +161,13 @@ function CanvasInner({ onSave, onTrigger, isSaving }: WorkflowCanvasProps) {
       }
 
       addNode(newNode);
+
+      // Sync trigger type into relayMeta so graphToDAGPayload serializes it correctly
+      if (item.type === "trigger") {
+        setMeta({ triggerType: item.triggerType!, triggerConfig: {} });
+      }
     },
-    [hasTrigger, screenToFlowPosition, addNode]
+    [hasTrigger, screenToFlowPosition, addNode, setMeta]
   );
 
   // ── Connection handler ─────────────────────────────────────────────────────

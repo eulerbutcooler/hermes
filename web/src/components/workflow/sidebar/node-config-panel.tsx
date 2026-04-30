@@ -183,9 +183,11 @@ function TriggerConfig({
           <input
             type="text"
             value={(data.triggerConfig?.schedule as string) ?? "0 9 * * *"}
-            onChange={(e) =>
-              onChangeData({ triggerConfig: { ...data.triggerConfig, schedule: e.target.value } })
-            }
+            onChange={(e) => {
+              const newConfig = { ...data.triggerConfig, schedule: e.target.value };
+              onChangeData({ triggerConfig: newConfig });
+              onChangeMeta({ triggerConfig: newConfig });
+            }}
             className="config-input font-mono"
             placeholder="0 9 * * *"
           />

@@ -111,8 +111,18 @@ func (s *RelayStore) CreateRelay(ctx context.Context, req models.CreateRelayRequ
 		}
 		actions = append(actions, action)
 	}
+	// Backwards compatibility: if no edges are provided, generate a linear chain
+	if len(req.Edges) == 0 && len(req.Actions) > 1 {
+		for i := 0; i < len(req.Actions)-1; i++ {
+			req.Edges = append(req.Edges, models.RelayEdge{
+				ParentNodeID: req.Actions[i].NodeID,
+				ChildNodeID:  req.Actions[i+1].NodeID,
+			})
+		}
+	}
+
 	edges := make([]models.RelayEdge, 0, len(req.Edges))
-	queryEdge := `INSERTN INTO relay_edges(relay_id,parent_node_id,child_node_id,condition, created_at)
+	queryEdge := `INSERT INTO relay_edges(relay_id,parent_node_id,child_node_id,condition, created_at)
 	VALUES ($1,$2,$3,$4,$5)
 	RETURNING parent_node_id, child_node_id,condition`
 
@@ -446,6 +456,16 @@ func (s *RelayStore) UpdateRelayActions(ctx context.Context, relayID, userID str
 		}
 		actions = append(actions, action)
 	}
+	// Backwards compatibility: if no edges are provided, generate a linear chain
+	if len(req.Edges) == 0 && len(req.Actions) > 1 {
+		for i := 0; i < len(req.Actions)-1; i++ {
+			req.Edges = append(req.Edges, models.RelayEdge{
+				ParentNodeID: req.Actions[i].NodeID,
+				ChildNodeID:  req.Actions[i+1].NodeID,
+			})
+		}
+	}
+
 	edges := make([]models.RelayEdge, 0, len(req.Edges))
 	queryEdge := `INSERT INTO relay_edges(relay_id, parent_node_id, child_node_id, condition, created_at)
 	VALUES ($1,$2,$3,$4,$5)

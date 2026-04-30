@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -44,8 +45,11 @@ func (h *Handler) respondSuccess(w http.ResponseWriter, status int, message stri
 // RELAY API
 
 func (h *Handler) CreateRelay(w http.ResponseWriter, r *http.Request) {
+	bodyBytes, _ := io.ReadAll(r.Body)
+	h.logger.Info("CreateRelay raw payload", slog.String("body", string(bodyBytes)))
+
 	var req models.CreateRelayRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.Unmarshal(bodyBytes, &req); err != nil {
 		h.logger.Warn("invalid request body",
 			slog.String("error", err.Error()),
 			slog.String("path", r.URL.Path),
