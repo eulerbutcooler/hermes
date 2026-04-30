@@ -225,9 +225,14 @@ function ActionConfig({
 
   return (
     <div className="space-y-3">
-      <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">
-        {data.actionType.replace(/_/g, " ")}
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">
+          {data.actionType.replace(/_/g, " ")}
+        </p>
+        <span className="text-[9px] font-mono text-zinc-600 bg-black/20 px-1.5 py-0.5 rounded" title="Use this ID in your template variables: {{ steps['node_id'].output... }}">
+          ID: {data.nodeId}
+        </span>
+      </div>
       <ActionConfigFields
         type={data.actionType as ActionType}
         config={data.config}
@@ -246,8 +251,14 @@ function ConditionNodeConfig({
   data: ConditionNodeData;
   onChange: (d: Record<string, unknown>) => void;
 }) {
+  const cond: ConditionData = data.condition ?? { field: "", operator: "==", value: "" };
+
+  const update = (partial: Partial<ConditionData>) => {
+    onChange({ condition: { ...cond, ...partial } });
+  };
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <Field label="Node Label">
         <input
           type="text"
@@ -257,8 +268,43 @@ function ConditionNodeConfig({
           placeholder="Condition"
         />
       </Field>
+      
+      <div className="space-y-3 pt-2 border-t border-white/5">
+        <Field label="Field path">
+          <input
+            type="text"
+            value={cond.field}
+            onChange={(e) => update({ field: e.target.value })}
+            className="config-input font-mono"
+            placeholder="payload.status"
+          />
+        </Field>
+        <Field label="Operator">
+          <select
+            value={cond.operator}
+            onChange={(e) => update({ operator: e.target.value as ConditionData["operator"] })}
+            className="config-input"
+          >
+            {OPERATORS.map((op) => (
+              <option key={op} value={op}>{op}</option>
+            ))}
+          </select>
+        </Field>
+        {cond.operator !== "exists" && (
+          <Field label="Value">
+            <input
+              type="text"
+              value={cond.value}
+              onChange={(e) => update({ value: e.target.value })}
+              className="config-input"
+              placeholder="200"
+            />
+          </Field>
+        )}
+      </div>
+
       <p className="text-[11px] text-zinc-500 leading-relaxed">
-        Configure conditions on the outgoing edges (click an edge to set its condition).
+        Connect edges to the True/False handles.
       </p>
     </div>
   );

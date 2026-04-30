@@ -67,14 +67,14 @@ func LoadConfig() *Config {
 		cfg.GoogleOAuth = &OAuthProviderConfig{
 			ClientID:     id,
 			ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-			RedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "http://localhost:3000/api/v1/auth/callback/google"),
+			RedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "http://localhost:8081/api/v1/auth/callback/google"),
 		}
 	}
 	if id := os.Getenv("MICROSOFT_CLIENT_ID"); id != "" {
 		cfg.MicrosoftOAuth = &OAuthProviderConfig{
 			ClientID:     id,
 			ClientSecret: os.Getenv("MICROSOFT_CLIENT_SECRET"),
-			RedirectURL:  getEnv("MICROSOFT_REDIRECT_URL", "http://localhost:3000/api/v1/auth/callback/microsoft"),
+			RedirectURL:  getEnv("MICROSOFT_REDIRECT_URL", "http://localhost:8081/api/v1/auth/callback/microsoft"),
 		}
 	}
 

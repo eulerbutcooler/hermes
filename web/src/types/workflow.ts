@@ -19,6 +19,7 @@ export interface ActionNodeData extends Record<string, unknown> {
 export interface ConditionNodeData extends Record<string, unknown> {
   nodeId: string;
   label: string;
+  condition?: ConditionData;
 }
 
 // ─── Canvas Node / Edge Types ──────────────────────────────────────────────────

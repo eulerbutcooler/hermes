@@ -141,6 +141,7 @@ function CanvasInner({ onSave, onTrigger, isSaving }: WorkflowCanvasProps) {
           data: {
             nodeId,
             label: "Condition",
+            condition: { field: "", operator: "==", value: "" },
           },
         } as WorkflowNode;
       } else {

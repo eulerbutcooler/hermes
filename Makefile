@@ -113,6 +113,10 @@ dev-worker: ## Run hermes-worker background processor
 	@echo "$(YELLOW)Starting hermes-worker...$(NC)"
 	@cd services/hermes-worker && go run cmd/main.go
 
+dev-all: ## Run all backend services concurrently
+	@echo "$(YELLOW)Starting all backend services...$(NC)"
+	@$(MAKE) -j3 dev-core dev-hooks dev-worker
+
 ## Build commands
 
 build: ## Build all services into bin/ directory
@@ -137,7 +141,7 @@ setup: infra-up db-migrate-up ## Complete first-time setup (infra + migrations)
 	@echo "$(GREEN)✓✓✓ Setup complete! ✓✓✓$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Next steps:$(NC)"
-	@echo "  1. Terminal 1: $(GREEN)make dev-core$(NC)   (API server on :3000)"
+	@echo "  1. Terminal 1: $(GREEN)make dev-core$(NC)   (API server on :8081)"
 	@echo "  2. Terminal 2: $(GREEN)make dev-hooks$(NC)  (Webhook ingestion on :8080)"
 	@echo "  3. Terminal 3: $(GREEN)make dev-worker$(NC) (Background workers)"
 	@echo ""
